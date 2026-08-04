@@ -33,6 +33,12 @@ El canvas es ahora **infinito y sin barras de desplazamiento**: un gestor de ven
 
 El buffer circular L0 está implementado **local-first** (`apps/launcher/src/l0/`) con semántica de Redis Streams: buffer circular `MAXLEN ~ N` configurable, TTL de 24h por sesión, feed en vivo con polling de 1s, prosodia simulada (Pitch/Energy/Speech Rate) con modo auto-simulación de 500ms, exportación a `prosodia_session_YYYYMMDD.json` y cierre de sesiones con resumen. Cada mensaje del chat (usuario y agente) se escribe automáticamente al buffer. La interfaz `L0Store` queda como seam para un futuro adaptador Redis cuando haya Docker.
 
+## Índice L1 de hechos atómicos (hitos 3.1–3.5)
+
+La capa L1 extrae **hechos atómicos SPO** (sujeto-predicado-objeto) de las entradas L0 y los indexa como vectores consultables (`apps/launcher/src/l1/`), local-first con semántica Qdrant: colección de facts con embeddings 384-d, búsqueda cosine Top-K=5 con **decay temporal** `score = cos · e^(−λ·Δt)` y λ configurable (0.01–0.5).
+
+Los embeddings se generan **100% en el webview** con `@huggingface/transformers` + `all-MiniLM-L6-v2` (ONNX, descarga única, sin API externa ni Ollama). El **extractor SPO** usa el LLM configurado (DeepSeek) con fallback heurístico local, tripletas editables y filtro de certeza ≥ 75%. Un **worker de auto-extracción** procesa cada N=5 entradas nuevas del buffer L0 (polling local en lugar de `XREAD BLOCK`), con badge de pendientes y log. Todo vive en el panel *Memory > L1 Atomic Facts Index*. La interfaz `L1Store` queda como seam para un futuro adaptador Qdrant real.
+
 ## Memoria visual y editable
 
 La página Memory muestra el **grafo de conexiones** de los recuerdos: el tamaño de cada nodo representa su importancia/fuerza y el color su emoción asociada (rueda de Plutchik), con aristas por temas compartidos. Incluye **búsqueda semántica** local (similitud de keywords + fuerza Ebbinghaus), **inserción** de memorias nuevas y **edición por capas**: *Decay* (olvido acelerado), *Repress* (mover al subconsciente) o *Delete* (eliminar de todas las capas, con confirmación).

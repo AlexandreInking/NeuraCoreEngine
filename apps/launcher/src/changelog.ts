@@ -6,6 +6,17 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: 'v0.3.0-alpha',
+    date: '2026-08-05',
+    notes: [
+      'Hito 3.1-3.5: índice de hechos atómicos L1 local-first con semántica Qdrant — `LocalL1Store` (facts SPO vectorizados, búsqueda cosine Top-K con decay temporal `cos·e^(−λ·Δt)`, λ configurable 0.01-0.5).',
+      'Embeddings 100% locales en el webview: `@huggingface/transformers` + `all-MiniLM-L6-v2` (384 dims, ONNX, descarga única). Sin Docker, sin Ollama, sin API externa.',
+      'Extractor SPO: prompt LLM (DeepSeek configurado) con fallback heurístico local, tripletas editables y filtro de certeza ≥ 75%.',
+      'Worker auto-extracción L0 → L1: cada N=5 entradas nuevas del buffer procesa un batch (polling local en lugar de `XREAD BLOCK`), badge de pendientes y log de extracción.',
+      'Panel Memory > L1 Atomic Facts Index: generador de embeddings con preview del vector, extracción/indexación de tripletas, búsqueda semántica con λ slider y estado del modelo.',
+    ],
+  },
+  {
     version: 'v0.1.0-alpha',
     date: '2026-08-03',
     notes: [

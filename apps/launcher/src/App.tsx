@@ -1830,6 +1830,7 @@ function LauncherShell() {
                   onDeleteMemory={handleDeleteMemory}
                   onSearch={handleSearchMemories}
                   agentId={projectConfig.agentName}
+                  deepSeekConfig={deepSeekConfig}
                 />
               }
             />

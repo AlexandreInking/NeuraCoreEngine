@@ -22,6 +22,8 @@ export default [
         PointerEvent: 'readonly',
         Blob: 'readonly',
         URL: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     plugins: { '@typescript-eslint': typescriptEslint },

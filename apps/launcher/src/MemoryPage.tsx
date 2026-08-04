@@ -1,6 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import MemoryGraph from './MemoryGraph';
 import L0Panel from './L0Panel';
+import L1Panel from './L1Panel';
+import type { DeepSeekConfig } from './cognition/deepseek';
 import type { CognitiveState, DreamLog, MemoryUnit } from './cognition/types';
 import { EMOTION_COLORS } from './cognition/types';
 import { emotionOfMemory } from './cognition/memory';
@@ -347,6 +349,7 @@ export default function MemoryPage({
   onDeleteMemory,
   onSearch,
   agentId,
+  deepSeekConfig,
 }: {
   cognition: CognitiveState | null;
   onRunDream: () => void;
@@ -357,6 +360,7 @@ export default function MemoryPage({
   onDeleteMemory: (id: string) => void;
   onSearch: (query: string) => RetrievedMemory[];
   agentId: string;
+  deepSeekConfig: DeepSeekConfig;
 }) {
   const summary = cognition
     ? {
@@ -397,6 +401,8 @@ export default function MemoryPage({
       </div>
 
       <L0Panel agentId={agentId} />
+
+      <L1Panel agentId={agentId} deepSeekConfig={deepSeekConfig} />
 
       <div className="memory-toolbar">
         <div>

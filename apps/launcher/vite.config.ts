@@ -5,4 +5,7 @@ export default defineConfig({
   plugins: [react()],
   clearScreen: false,
   server: { port: 1420, strictPort: true },
+  optimizeDeps: { exclude: ['@huggingface/transformers'] },
+  worker: { format: 'es' },
+  build: { target: 'es2022' },
 });
