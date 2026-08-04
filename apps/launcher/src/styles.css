@@ -5294,3 +5294,127 @@ a:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Live Session / Orchestrator (hito 7.x) ────────────────────────── */
+
+.live-session {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0 22px;
+}
+
+.subsystem-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xs);
+}
+
+.subsystem-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.78rem;
+}
+
+.subsystem-chip strong {
+  font-family: var(--font-mono);
+}
+
+.subsystem-chip small {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.subsystem-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex: 0 0 auto;
+}
+
+.subsystem-chip.ok .subsystem-dot {
+  background: var(--green);
+}
+
+.subsystem-chip.bad .subsystem-dot {
+  background: var(--danger);
+}
+
+.subsystem-chip.ok {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.subsystem-chip.bad {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.pipeline-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.pipeline-step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex: 0 0 auto;
+  transition: background 150ms ease;
+}
+
+.pipeline-step.ok {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.pipeline-step.ok .pipeline-step-dot {
+  background: var(--green);
+}
+
+.pipeline-step.error {
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.pipeline-step.error .pipeline-step-dot {
+  background: var(--danger);
+}
+
+.pipeline-step-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pipeline-step-main strong {
+  font-size: 0.78rem;
+}
+
+.pipeline-step-main small {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 720px) {
+  .subsystem-grid,
+  .pipeline-steps {
+    grid-template-columns: 1fr 1fr;
+  }
+}

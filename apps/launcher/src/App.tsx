@@ -24,6 +24,7 @@ import {
 import { CHANGELOG } from './changelog';
 import MemoryPage from './MemoryPage';
 import AffectEnginePage from './AffectEnginePage';
+import LiveSessionPage from './LiveSessionPage';
 import {
   CognitionEngine,
   DEFAULT_DEEPSEEK_CONFIG,
@@ -73,6 +74,7 @@ const NAV_ITEMS: Array<{ path: string; label: string; icon: IconName }> = [
   { path: '/chats', label: 'Chats', icon: 'chats' },
   { path: '/memory', label: 'Memory', icon: 'memory' },
   { path: '/affect-engine', label: 'Affect Engine', icon: 'affect' },
+  { path: '/live', label: 'Live Session', icon: 'pulse' },
   { path: '/logs', label: 'Logs', icon: 'logs' },
   { path: '/updates', label: 'Updates', icon: 'download' },
   { path: '/settings', label: 'Settings', icon: 'settings' },
@@ -1873,6 +1875,15 @@ function LauncherShell() {
                   cognition={cognitionState}
                   onStimulus={applyStimulus}
                   onTick={tickDecay}
+                />
+              }
+            />
+            <Route
+              path="/live"
+              element={
+                <LiveSessionPage
+                  agentId={projectConfig.agentName}
+                  deepSeekConfig={deepSeekConfig}
                 />
               }
             />
