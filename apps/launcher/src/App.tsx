@@ -6,9 +6,7 @@ import {
   type DownloadEvent,
   type Update,
 } from '@tauri-apps/plugin-updater';
-import {
-  useCallback,
-  useEffect,
+import { Component, useCallback,  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -1850,10 +1848,10 @@ function LauncherShell() {
           onInstall={installUpdate}
         />
         <main className="main-content">
-          <Routes>
+          <AppErrorBoundary>
+            <Routes>
             <Route
-              path="/"
-              element={
+              path="/"              element={
                 <DashboardPage
                   config={projectConfig}
                   cognition={cognitionState}
@@ -1945,11 +1943,41 @@ function LauncherShell() {
               }
             />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+            </Routes>
+          </AppErrorBoundary>
         </main>
       </div>
     </div>
   );
+}
+
+type AppErrorBoundaryState = { error: string | null };
+
+class AppErrorBoundary extends Component<{ children?: ReactNode }, AppErrorBoundaryState> {
+  state: AppErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: unknown): AppErrorBoundaryState {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="error-boundary">
+          <h3>Algo salió mal en esta vista</h3>
+          <p>{this.state.error}</p>
+          <button
+            className="button-primary"
+            type="button"
+            onClick={() => this.setState({ error: null })}
+          >
+            Reintentar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function App() {

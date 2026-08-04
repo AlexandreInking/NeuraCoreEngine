@@ -14,7 +14,7 @@ const KINDS: ProviderKind[] = ['deepseek', 'openai', 'azure', 'openai-compatible
  */
 export function LlmProvidersSettings() {
   const manager = providerManager();
-  const [providers, setProviders] = useState<ProviderConfig[]>(manager.providers);
+  const [providers, setProviders] = useState<ProviderConfig[]>(manager.providers());
   const [activeId, setActiveId] = useState(manager.activeProvider()?.id ?? '');
   const [fallbacks, setFallbacks] = useState<string[]>(manager.fallbackIds());
   const [editingId, setEditingId] = useState<string | null>(null);

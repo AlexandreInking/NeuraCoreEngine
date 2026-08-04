@@ -5528,3 +5528,27 @@ a:focus-visible {
   color: var(--danger);
   font-size: 0.78rem;
 }
+
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  padding: var(--space-lg);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  margin: var(--space-md);
+}
+
+.error-boundary h3 {
+  margin: 0;
+  color: var(--danger);
+}
+
+.error-boundary p {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
