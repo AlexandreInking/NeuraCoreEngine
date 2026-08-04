@@ -3,6 +3,8 @@ import type { TraitProfile } from '../cognition/types';
 export type EmergencyResponse = {
   content: string;
   style: 'upbeat' | 'reserved' | 'honest' | 'concise';
+  /** Reason the LLM call failed (for diagnostics/UI). */
+  reason?: string;
 };
 
 /**

@@ -1501,7 +1501,9 @@ function LauncherShell() {
         [{ role: 'system', content: finalSystemPrompt }, ...history],
         { traits: engine.state.personality.conscious },
       );
-      const response = llmResult.content;
+      const response = llmResult.emergency?.reason
+        ? `${llmResult.content}\n\n_(${llmResult.emergency.reason})_`
+        : llmResult.content;
       engine.recordAssistantReply(response);
       setCognitionState({ ...engine.state });
       l0.append('main', agentId, 'agent', response, { ...DEFAULT_PROSODY });
@@ -1512,7 +1514,7 @@ function LauncherShell() {
           {
             id: createId('log'),
             timestamp: Date.now(),
-            message: `LLM agotó proveedores → respuesta de emergencia (${emergency.style})`,
+            message: `LLM agotó proveedores → respuesta de emergencia (${emergency.style})${emergency.reason ? ` — ${emergency.reason}` : ''}`,
             level: 'WARN',
           },
         ]);

@@ -175,7 +175,7 @@ describe('llm/timeouts — el chat nunca se cuelga', () => {
       usedFallback: true,
       emergency: { style: 'upbeat' },
     });
-    await vi.advanceTimersByTimeAsync(25_000);
+    await vi.advanceTimersByTimeAsync(26_000);
     await assertion;
   });
 });
