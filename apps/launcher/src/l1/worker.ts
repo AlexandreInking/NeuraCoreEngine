@@ -4,6 +4,8 @@ import {
 } from '../cognition/deepseek';
 import { embedTexts } from './embedder';
 import { extractSpo } from './extractor';
+import { scrubPii } from '../privacy/pii';
+import { recordTelemetry } from '../telemetry/metrics';
 import type { L1Store } from './store';
 import { l0StoreFor } from '../l0/store';
 import type { L1Fact } from './types';
@@ -139,8 +141,10 @@ export class L1AutoWorker {
         continue;
       }
       try {
-        const { triplets, fromModel } = await extractSpo(entry.text, config);
+        const safeText = scrubPii(entry.text).text;
+        const { triplets, fromModel } = await extractSpo(safeText, config);
         if (triplets.length) {
+          recordTelemetry({ l1FactsIndexed: triplets.length });
           const embeddings = await embedTexts(
             triplets.map((triplet) =>
               `${triplet.subject} ${triplet.predicate} ${triplet.object}`.trim(),

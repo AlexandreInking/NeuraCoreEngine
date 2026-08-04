@@ -16,8 +16,12 @@ pub mod pb {
 }
 
 use axum::{
-    extract::{ws::{Message as WsMessage, WebSocket, WebSocketUpgrade}, Path},
+    extract::{
+        ws::{Message as WsMessage, WebSocket, WebSocketUpgrade},
+        Path, Request as AxumRequest,
+    },
     http::HeaderMap,
+    middleware::{self, Next},
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse, Response,
@@ -31,7 +35,14 @@ use pb::neura_core_v2_server::{NeuraCoreV2, NeuraCoreV2Server};
 use pb::{AffectFrame, StreamAffectRequest, TurnRequest, TurnResponse};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::{convert::Infallible, net::SocketAddr, pin::Pin, sync::Mutex, time::Duration};
+use std::{
+    collections::HashMap,
+    convert::Infallible,
+    net::SocketAddr,
+    pin::Pin,
+    sync::{Mutex, OnceLock},
+    time::Duration,
+};
 use tonic::{transport::Server, Request, Response as TonicResponse, Status};
 
 // ── shared state ─────────────────────────────────────────────────────
@@ -186,6 +197,54 @@ impl NeuraCoreV2 for GrpcGateway {
             }
         };
         Ok(TonicResponse::new(Box::pin(stream)))
+    }
+}
+
+// ── rate limiting (hito 9.5) ─────────────────────────────────────────
+
+const RATE_WINDOW_SECS: u64 = 60;
+const RATE_MAX_PER_WINDOW: u32 = 120;
+
+static RATE_BUCKETS: OnceLock<Mutex<HashMap<String, (u32, u64)>>> = OnceLock::new();
+
+fn rate_buckets() -> &'static Mutex<HashMap<String, (u32, u64)>> {
+    RATE_BUCKETS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn client_ip(request: &AxumRequest) -> String {
+    request
+        .headers()
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(',').next())
+        .map(|ip| ip.trim().to_string())
+        .filter(|ip| !ip.is_empty())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+async fn rate_limit_middleware(
+    request: AxumRequest,
+    next: Next,
+) -> Response {
+    let now = Utc::now().timestamp() as u64;
+    let ip = client_ip(&request);
+    let allowed = {
+        let mut buckets = rate_buckets().lock().unwrap();
+        let entry = buckets.entry(ip).or_insert((0, now));
+        if now - entry.1 >= RATE_WINDOW_SECS {
+            *entry = (0, now);
+        }
+        entry.0 += 1;
+        entry.0 <= RATE_MAX_PER_WINDOW
+    };
+    if allowed {
+        next.run(request).await
+    } else {
+        (
+            axum::http::StatusCode::TOO_MANY_REQUESTS,
+            "rate limit excedido (120 req/min)",
+        )
+            .into_response()
     }
 }
 
@@ -355,6 +414,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/admin/tenants", get(admin_list_tenants).post(admin_create_tenant))
         .route("/admin/tenants/:id", delete(admin_revoke_tenant))
         .route("/admin/logs", get(admin_logs))
+        .layer(middleware::from_fn(rate_limit_middleware))
         .layer(tower_http::cors::CorsLayer::permissive());
 
     let rest_addr: SocketAddr = "127.0.0.1:8443".parse()?;

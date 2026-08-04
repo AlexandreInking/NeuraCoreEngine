@@ -14,6 +14,9 @@ import {
   type DeepSeekConfig,
 } from '../cognition/deepseek';
 import { heuristicAnalysis } from '../cognition/analysis';
+import { scrubPii } from '../privacy/pii';
+import { allowRate } from '../privacy/ratelimit';
+import { recordTelemetry } from '../telemetry/metrics';
 import type { L1Fact } from '../l1/types';
 
 export type SubsystemStatus = {
@@ -132,16 +135,49 @@ export class CognitiveOrchestrator {
       steps.push(step);
       onStep?.(step);
     };
+    const pipelineStarted = performance.now();
+
+    // 0. Rate limit (hito 9.5): token bucket per agent.
+    if (!allowRate(this.agentId)) {
+      recordTelemetry({ rateLimited: 1 });
+      emit({
+        name: 'Rate limit',
+        status: 'error',
+        latencyMs: 0,
+        detail: 'límite de turnos alcanzado',
+      });
+      return {
+        steps,
+        response: '',
+        topFacts: [],
+        activeScenario: null,
+        vad: this.vad.state(),
+        vadHistory: this.vadHistory.all(),
+      };
+    }
+
+    // 0b. PII scrubbing before anything reaches memory (hito 9.4).
+    const scrubbed = scrubPii(message);
+    const safeMessage = scrubbed.text;
+    emit({
+      name: 'PII scrub',
+      status: 'ok',
+      latencyMs: 0,
+      detail: scrubbed.findings.length
+        ? `${scrubbed.findings.length} PII enmascaradas (${scrubbed.findings.map((f) => f.kind).join(', ')})`
+        : 'sin PII',
+    });
+    recordTelemetry({ piiScrubbed: scrubbed.findings.length });
 
     // 1. L0 buffer write
     const l0 = await this.measure(() => {
-      const entry = l0StoreFor(this.agentId).append('main', this.agentId, 'user', message, DEFAULT_PROSODY);
+      const entry = l0StoreFor(this.agentId).append('main', this.agentId, 'user', safeMessage, DEFAULT_PROSODY);
       return entry.id;
     });
     emit({ name: 'L0 buffer', status: 'ok', latencyMs: l0.latencyMs, detail: l0.result });
 
     // 2. VAD extraction (lexical heuristic)
-    const analysis = heuristicAnalysis(message);
+    const analysis = heuristicAnalysis(safeMessage);
     const vad = await this.measure(() => {
       this.vad.fuse(
         { kind: 'lexical', delta: { valence: analysis.valence, arousal: analysis.arousal } },
@@ -206,7 +242,7 @@ export class CognitiveOrchestrator {
           role: 'system',
           content: `${l3.result ?? 'Eres un asistente coherente.'}\n\n${vadDeltaPromptHint()}`,
         },
-        { role: 'user', content: message },
+        { role: 'user', content: safeMessage },
       ];
       if (!config.apiKey.trim()) {
         throw new Error('DeepSeek API key no configurada');
@@ -247,6 +283,16 @@ export class CognitiveOrchestrator {
     } catch {
       // L0 write is best-effort
     }
+
+    // Telemetry (hito 9.6): record the full turn.
+    recordTelemetry({
+      turnsProcessed: 1,
+      userMessages: 1,
+      llmCalls: llmError ? 0 : 1,
+      llmErrors: llmError ? 1 : 0,
+      latencyMs: Math.round((performance.now() - pipelineStarted) * 10) / 10,
+      ok: !llmError,
+    });
 
     return {
       steps,

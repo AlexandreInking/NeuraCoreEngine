@@ -1,6 +1,7 @@
 import type { DeepSeekConfig } from './cognition/deepseek';
 import { LiveSessionPanel } from './orchestrator/LiveSessionPanel';
 import { ProactivePanel } from './proactive/ProactivePanel';
+import { TelemetryPanel } from './telemetry/TelemetryPanel';
 
 export default function LiveSessionPage({
   agentId,
@@ -24,6 +25,7 @@ export default function LiveSessionPage({
       </p>
       <LiveSessionPanel agentId={agentId} deepSeekConfig={deepSeekConfig} />
       <ProactivePanel />
+      <TelemetryPanel />
     </section>
   );
 }
