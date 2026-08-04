@@ -1,7 +1,13 @@
 import type {
   CognitiveState,
+  DefenseKey,
+  DefenseMechanisms,
+  EkmanEmotions,
   EmotionLabel,
   EmotionalState,
+  JungianArchetypes,
+  MaslowNeeds,
+  NeedKey,
   PlutchikEmotions,
   TraitProfile,
 } from './types';
@@ -28,6 +34,40 @@ export const DEFAULT_VAD = { valence: 0.1, arousal: -0.05, dominance: 0.15 };
 
 export const DEFAULT_GAMMA = 0.25;
 
+export const DEFAULT_JUNGIAN: JungianArchetypes = {
+  persona: 55,
+  shadow: 38,
+  animaAnimus: 42,
+  self: 30,
+  activeArchetype: 'persona',
+};
+
+export const DEFAULT_SHADOW = {
+  aggression: 24,
+  fearfulness: 30,
+  desire: 46,
+  rebellion: 22,
+};
+
+export const DEFAULT_DEFENSES: DefenseMechanisms = {
+  repression: 28,
+  projection: 18,
+  displacement: 22,
+  sublimation: 34,
+  rationalization: 26,
+  denial: 14,
+  activeDefense: 'sublimation',
+};
+
+export const DEFAULT_NEEDS: MaslowNeeds = {
+  physiological: 70,
+  safety: 65,
+  belongingness: 48,
+  esteem: 52,
+  selfActualization: 58,
+  currentFocus: 'belongingness',
+};
+
 function neutralPlutchik(): PlutchikEmotions {
   return {
     joy: 0.12,
@@ -41,21 +81,43 @@ function neutralPlutchik(): PlutchikEmotions {
   };
 }
 
+function neutralEkman(): EkmanEmotions {
+  return {
+    happiness: 0.12,
+    sadness: 0.05,
+    fear: 0.05,
+    anger: 0.04,
+    surprise: 0.04,
+    disgust: 0.03,
+  };
+}
+
 function createDefaultEmotions(): EmotionalState {
   return {
     ...DEFAULT_VAD,
     plutchik: neutralPlutchik(),
+    ekman: neutralEkman(),
     intensity: 0.12,
     dominantEmotion: 'neutral',
     baseline: { ...DEFAULT_VAD },
     emotionalInertiaGamma: DEFAULT_GAMMA,
+    history: [],
+    intelligence: {
+      selfAwareness: 0.35,
+      selfRegulation: 0.4,
+      empathy: 0.5,
+      socialSkills: 0.42,
+    },
+    contagionSusceptibility: 0.45,
+    regulationEffectiveness: 0.5,
+    somaticMarkers: [],
   };
 }
 
 export function createDefaultCognitiveState(agentId: string): CognitiveState {
   const now = Date.now();
   return {
-    version: 1,
+    version: 2,
     agentId,
     personality: {
       conscious: { ...DEFAULT_CONSCIOUS },
@@ -63,6 +125,17 @@ export function createDefaultCognitiveState(agentId: string): CognitiveState {
       moral: {
         conscious: { lawfulness: 62, goodness: 70 },
         subconscious: { lawfulness: 40, goodness: 45 },
+      },
+      jungian: { ...DEFAULT_JUNGIAN },
+      shadow: { ...DEFAULT_SHADOW },
+      psychodynamics: {
+        conflictLevel: 0.2,
+        dominantAspect: 'balanced',
+        defenseMechanisms: { ...DEFAULT_DEFENSES },
+        attachmentStyle: 'secure',
+        selfEfficacy: 62,
+        needsHierarchy: { ...DEFAULT_NEEDS },
+        positiveBias: 0.5,
       },
       conflictLevel: 0.2,
       driftRemaining: 5,
@@ -80,6 +153,15 @@ export function createDefaultCognitiveState(agentId: string): CognitiveState {
       lastInsight:
         'Acabo de despertar. Mi mente está en silencio, lista para conocerte.',
       updatedAt: now,
+    },
+    decisions: {
+      recent: [],
+      heartMind: {
+        coherenceLevel: 0.8,
+        conflictIntensity: 0.2,
+        dominantSystem: 'integrated',
+        resolutionStrategy: 'integration',
+      },
     },
     stats: {
       messagesProcessed: 0,
@@ -133,4 +215,57 @@ export function mapVadToPlutchik(
     surprise: clamp01(a) * clamp01(Math.abs(v)) * 0.7,
     anticipation: clamp01(a) * clamp01(v) * 0.6,
   };
+}
+
+/** Map Plutchik to Ekman universal emotions. */
+export function mapPlutchikToEkman(plutchik: PlutchikEmotions): EkmanEmotions {
+  return {
+    happiness: clamp01(plutchik.joy),
+    sadness: clamp01(plutchik.sadness),
+    fear: clamp01(plutchik.fear),
+    anger: clamp01(plutchik.anger),
+    surprise: clamp01(plutchik.surprise),
+    disgust: clamp01(plutchik.disgust),
+  };
+}
+
+export function lowestNeed(needs: Record<NeedKey, number>): NeedKey {
+  const keys: NeedKey[] = [
+    'physiological',
+    'safety',
+    'belongingness',
+    'esteem',
+    'selfActualization',
+  ];
+  let lowest: NeedKey = keys[0];
+  let lowestValue = needs[keys[0]];
+  for (const key of keys) {
+    if (needs[key] < lowestValue) {
+      lowest = key;
+      lowestValue = needs[key];
+    }
+  }
+  return lowest;
+}
+
+export function pickActiveDefense(
+  defenses: Record<DefenseKey, number>,
+): DefenseKey {
+  const keys: DefenseKey[] = [
+    'repression',
+    'projection',
+    'displacement',
+    'sublimation',
+    'rationalization',
+    'denial',
+  ];
+  let best: DefenseKey = 'sublimation';
+  let bestValue = -1;
+  for (const key of keys) {
+    if (defenses[key] > bestValue) {
+      best = key;
+      bestValue = defenses[key];
+    }
+  }
+  return best;
 }

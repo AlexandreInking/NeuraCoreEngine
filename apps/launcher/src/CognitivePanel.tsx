@@ -1,7 +1,16 @@
 import { TRAIT_KEYS, TRAIT_LABELS } from './cognition/types';
-import type { CognitiveState } from './cognition/types';
-import { EMOTION_LABELS } from './cognition/types';
-import type { EmotionLabel } from './cognition/types';
+import {
+  ARCHETYPE_LABELS,
+  ATTACHMENT_LABELS,
+  DEFENSE_LABELS,
+  EMOTION_LABELS,
+  NEED_LABELS,
+} from './cognition/types';
+import type {
+  CognitiveState,
+  EmotionLabel,
+  JungianArchetypes,
+} from './cognition/types';
 
 function formatTime(timestamp: number) {
   if (!timestamp) return null;
@@ -23,12 +32,13 @@ function headlineMetrics(state: CognitiveState) {
   const subconscious = Math.round(
     Math.min(
       1,
-      state.personality.conflictLevel * 0.65 +
+      state.personality.psychodynamics.conflictLevel * 0.55 +
+        state.personality.jungian.shadow * 0.0025 +
         Math.min(
           1,
           state.memory.units.filter((unit) => unit.isRepressed).length / 5,
         ) *
-          0.45,
+          0.4,
     ) * 100,
   );
   return [
@@ -43,7 +53,9 @@ function headlineMetrics(state: CognitiveState) {
 function memoryLayers(state: CognitiveState) {
   const units = state.memory.units;
   const clusters = new Set(units.flatMap((unit) => unit.keywords)).size;
-  const integration = Math.round((1 - state.personality.conflictLevel) * 100);
+  const integration = Math.round(
+    (1 - state.personality.psychodynamics.conflictLevel) * 100,
+  );
   return [
     {
       code: 'L0',
@@ -78,6 +90,15 @@ function plutchikEntries(state: CognitiveState) {
   ).sort((a, b) => b[1] - a[1]);
 }
 
+function archetypeEntries(jungian: JungianArchetypes) {
+  return [
+    ['persona', jungian.persona],
+    ['shadow', jungian.shadow],
+    ['anima_animus', jungian.animaAnimus],
+    ['self', jungian.self],
+  ] as const;
+}
+
 export default function CognitivePanel({
   cognition,
 }: {
@@ -104,6 +125,11 @@ export default function CognitivePanel({
   const topPlutchik = plutchikEntries(cognition).slice(0, 4);
   const lastDream =
     cognition.memory.dreamLogs[cognition.memory.dreamLogs.length - 1];
+  const j = cognition.personality.jungian;
+  const psych = cognition.personality.psychodynamics;
+  const shadow = cognition.personality.shadow;
+  const needs = psych.needsHierarchy;
+  const hm = cognition.decisions.heartMind;
 
   return (
     <aside className="cognitive-panel" aria-label="Shared cognitive summary">
@@ -174,6 +200,77 @@ export default function CognitivePanel({
             </div>
           );
         })}
+      </div>
+
+      <div className="cognitive-section-block">
+        <div className="cognitive-section-heading">
+          <span className="section-kicker">ARQUETIPOS JUNGUIANOS</span>
+          <span className="panel-caption">
+            ACTIVO: {ARCHETYPE_LABELS[j.activeArchetype].toUpperCase()}
+          </span>
+        </div>
+        {archetypeEntries(j).map(([key, value]) => (
+          <div className="cognitive-metric archetype-row" key={key}>
+            <div>
+              <span>
+                {key === 'anima_animus'
+                  ? 'Anima/Animus'
+                  : key[0].toUpperCase() + key.slice(1)}
+              </span>
+              <strong>{Math.round(value)}</strong>
+            </div>
+            <div className="cognitive-bar" aria-hidden="true">
+              <span style={{ width: `${Math.min(100, value)}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="cognitive-section-block">
+        <div className="cognitive-section-heading">
+          <span className="section-kicker">PSICODINÁMICA</span>
+          <span className="panel-caption">
+            {ATTACHMENT_LABELS[psych.attachmentStyle]} ·{' '}
+            {DEFENSE_LABELS[psych.defenseMechanisms.activeDefense]}
+          </span>
+        </div>
+        <div className="psycho-grid">
+          <span className="psycho-chip">
+            Sombra: A{Math.round(shadow.aggression)} · M
+            {Math.round(shadow.fearfulness)} · D{Math.round(shadow.desire)} · R
+            {Math.round(shadow.rebellion)}
+          </span>
+          <span className="psycho-chip">
+            Autoeficacia {Math.round(psych.selfEfficacy)}%
+          </span>
+          <span className="psycho-chip">
+            Necesidad: {NEED_LABELS[needs.currentFocus]}
+          </span>
+          <span className="psycho-chip">Aspecto: {psych.dominantAspect}</span>
+        </div>
+      </div>
+
+      <div className="cognitive-section-block">
+        <div className="cognitive-section-heading">
+          <span className="section-kicker">MENTE-CORAZÓN</span>
+          <span className="panel-caption">
+            {hm.dominantSystem.toUpperCase()}
+          </span>
+        </div>
+        <div className="cognitive-metric">
+          <div>
+            <span>Coherencia corazón-mente</span>
+            <strong>{Math.round(hm.coherenceLevel * 100)}%</strong>
+          </div>
+          <div className="cognitive-bar" aria-hidden="true">
+            <span
+              style={{ width: `${Math.round(hm.coherenceLevel * 100)}%` }}
+            />
+          </div>
+        </div>
+        <p className="decision-strategy">
+          Estrategia: {hm.resolutionStrategy.replace(/_/g, ' ')}
+        </p>
       </div>
 
       <div className="cognitive-section-block">

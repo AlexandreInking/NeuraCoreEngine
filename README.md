@@ -13,12 +13,13 @@ La referencia audiovisual usada para orientar el diseño está en [External Inpu
 Desde la versión alpha, el launcher ejecuta un motor cognitivo **local-first** (TypeScript, sin servidores ni Docker) inspirado en el documento de diseño NetNavi Superinteligente:
 
 - **Personalidad dual** HEXACO consciente/subconsciente con alineamiento moral y conflicto interno.
-- **Emociones** Plutchik + VAD con transición e inercia según la especificación del motor afectivo.
-- **Memoria** con curva de olvido de Ebbinghaus, represión freudiana, memoria de trabajo y recuperación por relevancia.
+- **Psicología profunda**: arquetipos jungianos (persona, sombra, anima/animus, self), perfil de sombra, mecanismos de defensa (Freud), jerarquía de necesidades (Maslow), estilo de apego (Ainsworth) y autoeficacia (Bandura).
+- **Emociones** Plutchik + VAD con transición e inercia según la especificación, emociones de Ekman, contagio emocional (Hatfield), inteligencia emocional (Goleman), marcadores somáticos (Damasio) y alineación corazón-mente (Kahneman/Haidt).
+- **Memoria** con curva de olvido de Ebbinghaus, represión freudiana, memoria de trabajo 7±2, recuperación por relevancia psicológica y reconsolidación.
 - **Sueños**: ciclo de consolidación que fortalece memorias, resuelve conflictos y genera insights.
 - **Introspección** y compilación de un System Prompt en carácter para el modelo conectado.
 
-Todo el estado persiste en `localStorage` del launcher (clave por agente). El modelo por defecto es `deepseek-v4-flash-0731`, configurable en Settings.
+Todo el estado persiste en `localStorage` del launcher (clave por agente). El modelo por defecto es `deepseek-v4-flash-0731`, configurable en Settings. El mundo interior se refleja en el Dashboard, el panel cognitivo de Chats, la página Affect Engine y la página Memory.
 
 ## Actualizaciones firmadas
 

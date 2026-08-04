@@ -25,6 +25,7 @@ import {
 import { CHANGELOG } from './changelog';
 import CognitivePanel from './CognitivePanel';
 import MemoryPage from './MemoryPage';
+import AffectEnginePage from './AffectEnginePage';
 import {
   CognitionEngine,
   DEFAULT_DEEPSEEK_CONFIG,
@@ -34,6 +35,11 @@ import {
   type DeepSeekConfig,
   type DeepSeekMessage,
 } from './cognition';
+import {
+  ARCHETYPE_LABELS,
+  ATTACHMENT_LABELS,
+  EMOTION_LABELS,
+} from './cognition/types';
 
 const VERSION = 'v0.1.0-alpha';
 
@@ -649,7 +655,18 @@ function Page({
   );
 }
 
-function DashboardPage({ config }: { config: ProjectConfig }) {
+function DashboardPage({
+  config,
+  cognition,
+  deepSeekConfigured,
+}: {
+  config: ProjectConfig;
+  cognition: CognitiveState | null;
+  deepSeekConfigured: boolean;
+}) {
+  const dominant = cognition
+    ? EMOTION_LABELS[cognition.emotions.dominantEmotion]
+    : '—';
   return (
     <Page
       eyebrow="SYSTEM OVERVIEW"
@@ -671,25 +688,79 @@ function DashboardPage({ config }: { config: ProjectConfig }) {
         </article>
         <article className="metric-card">
           <span className="metric-label">Engine bridge</span>
-          <strong>Standby</strong>
-          <span className="metric-note">Waiting for local services</span>
+          <strong>{deepSeekConfigured ? 'DeepSeek' : 'Local'}</strong>
+          <span className="metric-note">
+            {deepSeekConfigured
+              ? DEFAULT_DEEPSEEK_CONFIG.model
+              : 'Cognition engine offline-ready'}
+          </span>
+        </article>
+      </div>
+      <div className="metric-grid dashboard-cognition-grid">
+        <article className="metric-card">
+          <span className="metric-label">DOMINANT EMOTION</span>
+          <strong>{dominant}</strong>
+          <span className="metric-note">
+            Intensidad{' '}
+            {cognition ? Math.round(cognition.emotions.intensity * 100) : '—'}%
+          </span>
+        </article>
+        <article className="metric-card">
+          <span className="metric-label">CONSCIOUSNESS</span>
+          <strong>
+            {cognition
+              ? Math.round(cognition.introspection.selfAwareness * 100)
+              : '—'}
+            %
+          </strong>
+          <span className="metric-note">
+            {cognition
+              ? `Arquetipo ${ARCHETYPE_LABELS[cognition.personality.jungian.activeArchetype]}`
+              : 'Esperando al motor cognitivo'}
+          </span>
+        </article>
+        <article className="metric-card">
+          <span className="metric-label">MEMORY UNITS</span>
+          <strong>{cognition?.memory.units.length ?? '—'}</strong>
+          <span className="metric-note">
+            {cognition
+              ? `${cognition.memory.units.filter((m) => m.isRepressed).length} reprimidas`
+              : 'Sin actividad todavía'}
+          </span>
+        </article>
+        <article className="metric-card">
+          <span className="metric-label">INTERNAL CONFLICT</span>
+          <strong>
+            {cognition
+              ? Math.round(
+                  cognition.personality.psychodynamics.conflictLevel * 100,
+                )
+              : '—'}
+            %
+          </strong>
+          <span className="metric-note">
+            {cognition
+              ? `${ATTACHMENT_LABELS[cognition.personality.psychodynamics.attachmentStyle]} · ${cognition.personality.psychodynamics.dominantAspect}`
+              : 'Aspecto consciente/subconsciente'}
+          </span>
         </article>
       </div>
       <div className="content-grid">
         <article className="surface surface-large">
           <div className="surface-header">
             <div>
-              <span className="section-kicker">NEXT SIGNAL</span>
-              <h3>Foundation is in place</h3>
+              <span className="section-kicker">COGNITIVE SIGNAL</span>
+              <h3>The engine is alive</h3>
             </div>
             <span className="surface-badge">0.1 ALPHA</span>
           </div>
           <p className="surface-copy">
-            Use the sidebar to move through the engine layers. Configuration and
-            live data arrive in the next milestones.
+            {cognition
+              ? cognition.introspection.lastInsight
+              : 'Envía un mensaje en Chats para que Neura empiece a sentir y recordar.'}
           </p>
-          <NavLink className="text-link" to="/settings">
-            Review application settings <Icon name="arrow" />
+          <NavLink className="text-link" to="/chats">
+            Open the conversation layer <Icon name="arrow" />
           </NavLink>
         </article>
         <article className="surface signal-card">
@@ -875,33 +946,6 @@ function ChatsPage({
         </section>
         {panelOpen ? <CognitivePanel cognition={cognition} /> : null}
       </div>
-    </Page>
-  );
-}
-
-function EmptySectionPage({
-  eyebrow,
-  title,
-  description,
-  icon,
-  message,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  icon: IconName;
-  message: string;
-}) {
-  return (
-    <Page eyebrow={eyebrow} title={title} description={description}>
-      <article className="empty-state">
-        <div className="empty-icon">
-          <Icon name={icon} />
-        </div>
-        <h3>Module ready for its next milestone</h3>
-        <p>{message}</p>
-        <span className="coming-soon">COMING NEXT</span>
-      </article>
     </Page>
   );
 }
@@ -1622,6 +1666,22 @@ function LauncherShell() {
     );
   };
 
+  const applyStimulus = (
+    kind: 'positive' | 'negative' | 'intense_negative' | 'neutral',
+  ) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.simulateStimulus(kind);
+    setCognitionState({ ...engine.state });
+  };
+
+  const tickDecay = () => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.tickDecay(1);
+    setCognitionState({ ...engine.state });
+  };
+
   const saveDeepSeek = (nextConfig: DeepSeekConfig) => {
     const normalized = {
       apiKey: nextConfig.apiKey.trim(),
@@ -1840,7 +1900,13 @@ function LauncherShell() {
           <Routes>
             <Route
               path="/"
-              element={<DashboardPage config={projectConfig} />}
+              element={
+                <DashboardPage
+                  config={projectConfig}
+                  cognition={cognitionState}
+                  deepSeekConfigured={Boolean(deepSeekConfig.apiKey.trim())}
+                />
+              }
             />
             <Route
               path="/chats"
@@ -1869,12 +1935,10 @@ function LauncherShell() {
             <Route
               path="/affect-engine"
               element={
-                <EmptySectionPage
-                  eyebrow="AFFECTIVE STATE"
-                  title="Affect Engine"
-                  description="Observe the agent's VAD state and its transitions in real time."
-                  icon="affect"
-                  message="The VAD state machine and stimulus controls are scheduled for the beta engine milestone."
+                <AffectEnginePage
+                  cognition={cognitionState}
+                  onStimulus={applyStimulus}
+                  onTick={tickDecay}
                 />
               }
             />

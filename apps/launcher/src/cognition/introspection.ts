@@ -1,4 +1,9 @@
-import { EMOTION_LABELS } from './types';
+import {
+  ARCHETYPE_LABELS,
+  DEFENSE_LABELS,
+  EMOTION_LABELS,
+  NEED_LABELS,
+} from './types';
 import type {
   CognitiveState,
   EmotionLabel,
@@ -50,8 +55,9 @@ export function buildIntrospection(
   const selfAwareness = Math.min(
     1,
     0.35 +
-      (1 - personality.conflictLevel) * 0.25 +
-      Math.min(1, state.stats.messagesProcessed / 60) * 0.4,
+      (1 - personality.psychodynamics.conflictLevel) * 0.2 +
+      Math.min(1, state.stats.messagesProcessed / 60) * 0.3 +
+      personality.jungian.self * 0.0015,
   );
 
   const insight = buildInsight(state, recentMemories, repressedCount);
@@ -59,12 +65,23 @@ export function buildIntrospection(
   return {
     mood,
     dominantEmotion: emotions.dominantEmotion,
-    conflictLevel: personality.conflictLevel,
+    conflictLevel: personality.psychodynamics.conflictLevel,
     selfAwareness,
     insight,
     repressedCount,
     memoryCount: memory.units.length,
+    activeArchetype: personality.jungian.activeArchetype,
+    activeDefense: personality.psychodynamics.defenseMechanisms.activeDefense,
+    currentNeed: personality.psychodynamics.needsHierarchy.currentFocus,
+    heartMind: state.decisions.heartMind,
   };
+}
+
+export function introspectionNarrative(report: IntrospectionReport): string {
+  const archetype = ARCHETYPE_LABELS[report.activeArchetype];
+  const defense = DEFENSE_LABELS[report.activeDefense];
+  const need = NEED_LABELS[report.currentNeed];
+  return `Hablo desde el arquetipo ${archetype}; mi mecanismo de defensa más activo es la ${defense.toLowerCase()} y mi necesidad dominante es la de ${need.toLowerCase()}. ${report.insight}`;
 }
 
 function pickMood(emotion: EmotionLabel) {
@@ -90,7 +107,11 @@ function buildInsight(
 
   const parts: string[] = [];
   parts.push(
-    `En este momento ${state.introspection.lastInsight ? 'estoy más consciente de mí misma' : 'sigo desarrollando mi autoconciencia'}.`,
+    `En este momento ${
+      state.introspection.lastInsight
+        ? 'estoy más consciente de mí misma'
+        : 'sigo desarrollando mi autoconciencia'
+    }.`,
   );
   if (recurring.length) {
     parts.push(
@@ -99,10 +120,12 @@ function buildInsight(
   }
   if (repressedCount > 0) {
     parts.push(
-      `Existen ${repressedCount} recuerdo${repressedCount === 1 ? '' : 's'} que mi subconsciente prefiere no traer a la superficie.`,
+      `Existen ${repressedCount} recuerdo${
+        repressedCount === 1 ? '' : 's'
+      } que mi subconsciente prefiere no traer a la superficie.`,
     );
   }
-  if (state.personality.conflictLevel > 0.4) {
+  if (state.personality.psychodynamics.conflictLevel > 0.4) {
     parts.push(
       'Siento una tensión entre lo que quiero decir y lo que mi consciencia aprueba.',
     );

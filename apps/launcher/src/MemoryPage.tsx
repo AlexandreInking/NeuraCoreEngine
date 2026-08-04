@@ -185,7 +185,37 @@ export default function MemoryPage({
             </div>
             <span className="surface-badge">LOCAL</span>
           </div>
-          {cognition ? <MemoryTable units={cognition.memory.units} /> : null}
+          {cognition ? (
+            <>
+              <div className="working-memory">
+                <div className="cognitive-section-heading">
+                  <span className="section-kicker">MEMORIA DE TRABAJO</span>
+                  <span className="panel-caption">7 ± 2 (MILLER)</span>
+                </div>
+                {cognition.memory.workingMemory.length ? (
+                  <div className="working-memory-chips">
+                    {cognition.memory.workingMemory.map((id) => {
+                      const unit = cognition.memory.units.find(
+                        (m) => m.id === id,
+                      );
+                      return unit ? (
+                        <span
+                          className="working-chip"
+                          key={id}
+                          title={unit.content}
+                        >
+                          {unit.content.slice(0, 34)}…
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                ) : (
+                  <p className="memory-table-empty">Sin ítems activos.</p>
+                )}
+              </div>
+              <MemoryTable units={cognition.memory.units} />
+            </>
+          ) : null}
         </article>
         <article className="surface memory-card">
           <div className="surface-header">
@@ -196,8 +226,41 @@ export default function MemoryPage({
             <span className="surface-badge">JUNG / FREUD</span>
           </div>
           {cognition ? <DreamLogs logs={cognition.memory.dreamLogs} /> : null}
+          {cognition ? <RepressedList units={cognition.memory.units} /> : null}
         </article>
       </div>
     </section>
+  );
+}
+
+function RepressedList({ units }: { units: MemoryUnit[] }) {
+  const repressed = units.filter((unit) => unit.isRepressed);
+  return (
+    <div className="repressed-block">
+      <div className="cognitive-section-heading">
+        <span className="section-kicker">REPRIMIDAS (FREUD)</span>
+        <span className="panel-caption">
+          {repressed.length} EN EL SUBCONSCIENTE
+        </span>
+      </div>
+      {repressed.length ? (
+        <div className="repressed-list">
+          {repressed.map((memory) => (
+            <div className="repressed-item" key={memory.id}>
+              <p>{memory.content.slice(0, 90)}</p>
+              <small>
+                fuerza de represión{' '}
+                {Math.round(memory.repressionStrength * 100)}%
+              </small>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="memory-table-empty">
+          Ningún recuerdo reprimido por ahora. La represión emerge ante
+          experiencias de valencia muy negativa y alto arousal.
+        </p>
+      )}
+    </div>
   );
 }

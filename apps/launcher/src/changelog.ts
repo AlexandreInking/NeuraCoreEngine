@@ -18,6 +18,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Motor cognitivo local: personalidad HEXACO dual (consciente/subconsciente), emociones Plutchik + VAD, moralidad, introspección y memoria con olvido (Ebbinghaus), represión y sueños.',
       'Modelo por defecto: deepseek-v4-flash-0731.',
       'Página Memory: unidades de memoria, fuerza de retención, recuerdos reprimidos y ciclos de sueño.',
+      'Psicología profunda: arquetipos jungianos, sombra, mecanismos de defensa, jerarquía de Maslow, apego, marcadores somáticos, emociones de Ekman, inteligencia emocional y alineación corazón-mente.',
+      'Página Affect Engine: aura emocional, VAD, rueda de Plutchik, simulador de estímulos y decaimiento.',
+      'Dashboard con snapshot cognitivo en vivo y memoria de trabajo (7±2) en la página Memory.',
     ],
   },
 ];
