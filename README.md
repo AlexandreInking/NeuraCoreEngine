@@ -8,6 +8,18 @@ Neura-Core no incluye trackers, analytics, píxeles, SDKs publicitarios ni telem
 
 La referencia audiovisual usada para orientar el diseño está en [External Inputs/YouTube](External%20Inputs/YouTube/).
 
+## Motor cognitivo local
+
+Desde la versión alpha, el launcher ejecuta un motor cognitivo **local-first** (TypeScript, sin servidores ni Docker) inspirado en el documento de diseño NetNavi Superinteligente:
+
+- **Personalidad dual** HEXACO consciente/subconsciente con alineamiento moral y conflicto interno.
+- **Emociones** Plutchik + VAD con transición e inercia según la especificación del motor afectivo.
+- **Memoria** con curva de olvido de Ebbinghaus, represión freudiana, memoria de trabajo y recuperación por relevancia.
+- **Sueños**: ciclo de consolidación que fortalece memorias, resuelve conflictos y genera insights.
+- **Introspección** y compilación de un System Prompt en carácter para el modelo conectado.
+
+Todo el estado persiste en `localStorage` del launcher (clave por agente). El modelo por defecto es `deepseek-v4-flash-0731`, configurable en Settings.
+
 ## Actualizaciones firmadas
 
 El launcher consulta GitHub Releases en producción y solo acepta artefactos cuya firma coincida con la clave pública incluida en `apps/launcher/src-tauri/tauri.conf.json`. El botón de actualización descarga e instala el bundle firmado; una firma inválida se rechaza.

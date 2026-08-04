@@ -2290,3 +2290,342 @@ a:focus-visible {
     max-width: 92%;
   }
 }
+
+/* ── Cognition engine: live panel extras ─────────────────────────── */
+
+.cognitive-live {
+  color: var(--green);
+  border-color: rgba(16, 185, 129, 0.32);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.cognitive-dominant {
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.cognitive-section-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.hexaco-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px 44px;
+  gap: 8px;
+  align-items: center;
+}
+
+.hexaco-label {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hexaco-label i {
+  margin-left: 4px;
+  color: var(--amber);
+  font-style: normal;
+  font-size: 0.62rem;
+}
+
+.hexaco-bars {
+  position: relative;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+.hexaco-bars span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  transition: width 220ms ease;
+}
+
+.hexaco-conscious {
+  background: linear-gradient(90deg, var(--indigo), #70a1ff);
+}
+
+.hexaco-subconscious {
+  top: auto !important;
+  height: 5px;
+  background: linear-gradient(90deg, var(--amber), #fbbf24);
+  opacity: 0.85;
+}
+
+.hexaco-values {
+  color: var(--text-subtle);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.56rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.vad-row .cognitive-bar > span {
+  background: linear-gradient(90deg, #70a1ff, #a78bfa);
+}
+
+.plutchik-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.plutchik-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised-strong);
+}
+
+.plutchik-chip span {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+
+.plutchik-chip strong {
+  color: var(--text);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.6rem;
+}
+
+.dream-line {
+  display: grid;
+  gap: 6px;
+  margin-top: 22px;
+  padding: 13px 14px;
+  border: 1px solid rgba(112, 161, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(112, 161, 255, 0.06);
+}
+
+.dream-line p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.dream-line small {
+  color: var(--text-subtle);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+/* ── Memory page ─────────────────────────────────────────────────── */
+
+.memory-toolbar {
+  display: flex;
+  min-height: 72px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.memory-toolbar-note {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.memory-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.memory-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.memory-card {
+  min-height: 320px;
+}
+
+.memory-table {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.memory-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised-strong);
+}
+
+.memory-row.repressed {
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.memory-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.memory-row-main p {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.memory-badge {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  border-radius: 5px;
+}
+
+.badge-user {
+  color: var(--indigo);
+  border: 1px solid rgba(112, 161, 255, 0.3);
+  background: rgba(30, 58, 138, 0.2);
+}
+
+.badge-core {
+  color: var(--green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.memory-repressed {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  color: var(--amber);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 5px;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.memory-row-meta {
+  display: grid;
+  gap: 6px;
+  color: var(--text-subtle);
+  font-size: 0.62rem;
+}
+
+.memory-row-meta .memory-bar {
+  margin-top: 2px;
+}
+
+.memory-table-empty {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--text-subtle);
+  text-align: center;
+}
+
+.memory-table-empty strong {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.memory-table-empty span {
+  font-size: 0.72rem;
+}
+
+.dream-log-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.dream-log {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dream-log:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.dream-log-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dream-log-head strong {
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
+.dream-log-head span {
+  color: var(--text-subtle);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.56rem;
+}
+
+.dream-log ul {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 16px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.dream-empty {
+  margin: 22px 0 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 1040px) {
+  .memory-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .memory-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .memory-toolbar {
+    display: block;
+  }
+
+  .memory-toolbar .button-primary {
+    margin-top: 14px;
+  }
+
+  .hexaco-row {
+    grid-template-columns: minmax(0, 1fr) 70px 40px;
+  }
+}

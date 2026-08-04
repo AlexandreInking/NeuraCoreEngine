@@ -15,6 +15,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Multi-chat: crea y guarda conversaciones separadas localmente.',
       'Panel cognitivo compartido con resumen gráfico de personalidad, moralidad, emociones, consciencia, subconsciente y capas de memoria L0–L3.',
       'Conexión DeepSeek desde Settings: API key, base URL y modelo configurables con test de conexión.',
+      'Motor cognitivo local: personalidad HEXACO dual (consciente/subconsciente), emociones Plutchik + VAD, moralidad, introspección y memoria con olvido (Ebbinghaus), represión y sueños.',
+      'Modelo por defecto: deepseek-v4-flash-0731.',
+      'Página Memory: unidades de memoria, fuerza de retención, recuerdos reprimidos y ciclos de sueño.',
     ],
   },
 ];

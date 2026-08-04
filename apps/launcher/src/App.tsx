@@ -23,6 +23,17 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { CHANGELOG } from './changelog';
+import CognitivePanel from './CognitivePanel';
+import MemoryPage from './MemoryPage';
+import {
+  CognitionEngine,
+  DEFAULT_DEEPSEEK_CONFIG,
+  deepSeekChat,
+  testDeepSeekConnection,
+  type CognitiveState,
+  type DeepSeekConfig,
+  type DeepSeekMessage,
+} from './cognition';
 
 const VERSION = 'v0.1.0-alpha';
 
@@ -101,26 +112,6 @@ type Chat = {
   updatedAt: string;
   messages: ChatMessage[];
 };
-
-type DeepSeekConfig = {
-  apiKey: string;
-  baseUrl: string;
-  model: string;
-};
-
-const DEFAULT_DEEPSEEK_CONFIG: DeepSeekConfig = {
-  apiKey: '',
-  baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-chat',
-};
-
-const COGNITIVE_METRICS = [
-  { label: 'Personality', value: 78 },
-  { label: 'Morality', value: 92 },
-  { label: 'Emotions', value: 64 },
-  { label: 'Consciousness', value: 51 },
-  { label: 'Subconscious', value: 37 },
-];
 
 function Logo() {
   return (
@@ -390,55 +381,6 @@ function saveDeepSeekConfig(config: DeepSeekConfig) {
     );
   } catch {
     // The current session remains usable when local storage is unavailable.
-  }
-}
-
-function apiUrl(baseUrl: string, path: string) {
-  return `${baseUrl.trim().replace(/\/+$/, '')}${path}`;
-}
-
-async function deepSeekRequest(
-  config: DeepSeekConfig,
-  messages: ChatMessage[],
-) {
-  if (!config.apiKey.trim())
-    throw new Error('DeepSeek API key is not configured.');
-
-  const response = await fetch(apiUrl(config.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey.trim()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: config.model.trim() || DEFAULT_DEEPSEEK_CONFIG.model,
-      messages: messages.map(({ role, content }) => ({ role, content })),
-    }),
-  });
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-    error?: { message?: string };
-  };
-  if (!response.ok) {
-    throw new Error(
-      payload.error?.message ?? `DeepSeek request failed (${response.status}).`,
-    );
-  }
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) throw new Error('DeepSeek returned an empty response.');
-  return content;
-}
-
-async function testDeepSeekConnection(config: DeepSeekConfig) {
-  if (!config.apiKey.trim()) throw new Error('Enter a DeepSeek API key first.');
-  const response = await fetch(apiUrl(config.baseUrl, '/models'), {
-    headers: { Authorization: `Bearer ${config.apiKey.trim()}` },
-  });
-  if (!response.ok) {
-    const payload = (await response.json()) as { error?: { message?: string } };
-    throw new Error(
-      payload.error?.message ?? `Connection failed (${response.status}).`,
-    );
   }
 }
 
@@ -765,88 +707,11 @@ function DashboardPage({ config }: { config: ProjectConfig }) {
   );
 }
 
-function CognitiveSummary({ messageCount }: { messageCount: number }) {
-  const memoryLayers = [
-    {
-      code: 'L0',
-      title: 'Raw Logs',
-      note: `${messageCount} message${messageCount === 1 ? '' : 's'} in active chat`,
-      value: Math.min(100, messageCount * 8),
-    },
-    {
-      code: 'L1',
-      title: 'Atomic Facts',
-      note: 'Awaiting extraction',
-      value: 8,
-    },
-    {
-      code: 'L2',
-      title: 'Scenario Nodes',
-      note: 'No active scenario',
-      value: 0,
-    },
-    { code: 'L3', title: 'Core Persona', note: 'Profile baseline', value: 78 },
-  ];
-
-  return (
-    <aside className="cognitive-panel" aria-label="Shared cognitive summary">
-      <div className="cognitive-panel-header">
-        <div>
-          <span className="section-kicker">SHARED STATE</span>
-          <h3>Cognitive summary</h3>
-        </div>
-        <span className="surface-badge">BASELINE</span>
-      </div>
-      <p className="cognitive-note">
-        One panel shared by every chat. Engine values replace these baselines as
-        the memory and affect milestones land.
-      </p>
-      <div className="cognitive-metrics">
-        {COGNITIVE_METRICS.map((metric) => (
-          <div className="cognitive-metric" key={metric.label}>
-            <div>
-              <span>{metric.label}</span>
-              <strong>{metric.value}%</strong>
-            </div>
-            <div
-              className="cognitive-bar"
-              role="progressbar"
-              aria-label={`${metric.label} baseline`}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={metric.value}
-            >
-              <span style={{ width: `${metric.value}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="memory-layer-summary">
-        <div className="cognitive-section-heading">
-          <span className="section-kicker">MEMORY LAYERS</span>
-          <span className="panel-caption">L0 → L3</span>
-        </div>
-        {memoryLayers.map((layer) => (
-          <div className="memory-layer" key={layer.code}>
-            <span className="memory-layer-code">{layer.code}</span>
-            <div className="memory-layer-copy">
-              <strong>{layer.title}</strong>
-              <small>{layer.note}</small>
-              <div className="cognitive-bar memory-bar" aria-hidden="true">
-                <span style={{ width: `${layer.value}%` }} />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </aside>
-  );
-}
-
 function ChatsPage({
   chats,
   activeChatId,
   deepSeekConfigured,
+  cognition,
   onNewChat,
   onSelectChat,
   onSend,
@@ -854,6 +719,7 @@ function ChatsPage({
   chats: Chat[];
   activeChatId: string;
   deepSeekConfigured: boolean;
+  cognition: CognitiveState | null;
   onNewChat: () => void;
   onSelectChat: (chatId: string) => void;
   onSend: (content: string) => void;
@@ -1007,9 +873,7 @@ function ChatsPage({
             </div>
           </form>
         </section>
-        {panelOpen ? (
-          <CognitiveSummary messageCount={activeChat.messages.length} />
-        ) : null}
+        {panelOpen ? <CognitivePanel cognition={cognition} /> : null}
       </div>
     </Page>
   );
@@ -1531,7 +1395,7 @@ function SettingsPage({
                   model: event.target.value,
                 }))
               }
-              placeholder="deepseek-chat"
+              placeholder={DEFAULT_DEEPSEEK_CONFIG.model}
             />
           </label>
           {deepSeekStatus ? (
@@ -1577,6 +1441,11 @@ function LauncherShell() {
   const [configLoading, setConfigLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const engineRef = useRef<CognitionEngine | null>(null);
+  const [cognitionState, setCognitionState] = useState<CognitiveState | null>(
+    null,
+  );
+  const [dreamStatus, setDreamStatus] = useState('Dream engine idle.');
   const currentItem =
     NAV_ITEMS.find((item) => item.path === location.pathname) ?? NAV_ITEMS[0];
 
@@ -1588,6 +1457,20 @@ function LauncherShell() {
 
   useEffect(() => saveChats(chats), [chats]);
 
+  useEffect(() => {
+    if (!projectConfig) return;
+    const engine = CognitionEngine.load(projectConfig.agentName);
+    engineRef.current = engine;
+    const dream = engine.maybeRunDreamCycle(engine.state, Date.now());
+    if (dream) {
+      engine.save();
+      setDreamStatus(
+        `Dream cycle completed: ${dream.consolidatedCount} memories consolidated.`,
+      );
+    }
+    setCognitionState({ ...engine.state });
+  }, [projectConfig]);
+
   const createNewChat = () => {
     const chat = createChat();
     setChats((current) => [chat, ...current]);
@@ -1597,8 +1480,10 @@ function LauncherShell() {
   const sendChatMessage = async (content: string) => {
     const targetChatId = activeChatId || chats[0]?.id;
     const targetChat = chats.find((chat) => chat.id === targetChatId);
+    const engine = engineRef.current;
     if (
       !targetChat ||
+      !engine ||
       targetChat.messages.some((message) => message.content === '…')
     ) {
       return;
@@ -1628,6 +1513,11 @@ function LauncherShell() {
           : chat,
       ),
     );
+
+    // The cognition engine always processes the message (deterministic
+    // fallback when DeepSeek is not configured).
+    const processed = await engine.processMessage(content, deepSeekConfig);
+    setCognitionState({ ...processed.state });
 
     if (!deepSeekConfig.apiKey.trim()) {
       setChats((current) =>
@@ -1668,7 +1558,23 @@ function LauncherShell() {
     );
 
     try {
-      const response = await deepSeekRequest(deepSeekConfig, nextMessages);
+      const history: DeepSeekMessage[] = nextMessages
+        .slice(-6)
+        .map(({ role, content: messageContent }) => ({
+          role,
+          content: messageContent,
+        }));
+      const systemPrompt = engine.buildSystemPrompt(
+        content,
+        processed.analysis,
+        processed.memories,
+      );
+      const response = await deepSeekChat(deepSeekConfig, [
+        { role: 'system', content: systemPrompt },
+        ...history,
+      ]);
+      engine.recordAssistantReply(response);
+      setCognitionState({ ...engine.state });
       setChats((current) =>
         current.map((chat) =>
           chat.id === targetChatId
@@ -1704,6 +1610,16 @@ function LauncherShell() {
         ),
       );
     }
+  };
+
+  const runDreamCycle = () => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    const dream = engine.forceDreamCycle();
+    setCognitionState({ ...engine.state });
+    setDreamStatus(
+      `Dream cycle completed: ${dream.consolidatedCount} memories consolidated, ${dream.resolvedConflicts} conflicts resolved.`,
+    );
   };
 
   const saveDeepSeek = (nextConfig: DeepSeekConfig) => {
@@ -1933,6 +1849,7 @@ function LauncherShell() {
                   chats={chats}
                   activeChatId={activeChatId}
                   deepSeekConfigured={Boolean(deepSeekConfig.apiKey.trim())}
+                  cognition={cognitionState}
                   onNewChat={createNewChat}
                   onSelectChat={setActiveChatId}
                   onSend={(content) => void sendChatMessage(content)}
@@ -1942,12 +1859,10 @@ function LauncherShell() {
             <Route
               path="/memory"
               element={
-                <EmptySectionPage
-                  eyebrow="MEMORY SYSTEM"
-                  title="Memory"
-                  description="Inspect the four-tier memory architecture as it comes online."
-                  icon="memory"
-                  message="The L0 buffer, vector index, graph store, and persona profile will appear here as their milestones land."
+                <MemoryPage
+                  cognition={cognitionState}
+                  onRunDream={runDreamCycle}
+                  dreamStatus={dreamStatus}
                 />
               }
             />
