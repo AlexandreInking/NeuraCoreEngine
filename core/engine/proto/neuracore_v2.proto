@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package neuracore.v2;
+
+// Neura-Core v2 output gateway (hito 8.3-8.5): the launcher/motor publishes
+// turns and VAD frames; external clients (Unity/UE5/web) consume them.
+service NeuraCoreV2 {
+  // Accept a fully-formed SDK payload JSON and echo acceptance.
+  rpc EmitTurn(TurnRequest) returns (TurnResponse);
+  // Server-streaming VAD frames for live affect animation.
+  rpc StreamAffect(StreamAffectRequest) returns (stream AffectFrame);
+}
+
+message TurnRequest {
+  string agent_id = 1;
+  string user_message = 2;
+  string payload_json = 3; // NeuraCoreOutputPayload (validated server-side)
+}
+
+message TurnResponse {
+  bool accepted = 1;
+  string payload_json = 2;
+  string validation = 3; // "ok" or error summary
+}
+
+message StreamAffectRequest {
+  string agent_id = 1;
+  int32 fps = 2; // default 20
+}
+
+message AffectFrame {
+  float valence = 1;
+  float arousal = 2;
+  float dominance = 3;
+  string hex_color = 4;
+  int64 timestamp_ms = 5;
+}
