@@ -4497,3 +4497,25 @@ a:focus-visible {
     grid-column: auto;
   }
 }
+
+.l1-qdrant-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.l1-qdrant-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 7px 9px;
+  font-size: 0.85rem;
+  min-width: 120px;
+}
+
+.l1-qdrant-port {
+  min-width: 84px;
+  width: 84px;
+}

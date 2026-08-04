@@ -4,7 +4,7 @@ import {
 } from '../cognition/deepseek';
 import { embedTexts } from './embedder';
 import { extractSpo } from './extractor';
-import { l1StoreFor, type L1Store } from './store';
+import type { L1Store } from './store';
 import { l0StoreFor } from '../l0/store';
 import type { L1Fact } from './types';
 
@@ -38,7 +38,7 @@ function readDeepSeekConfig(): DeepSeekConfig {
  * new entries triggers SPO extraction + embedding + indexing.
  */
 export class L1AutoWorker {
-  private readonly store: L1Store;
+  readonly store: L1Store;
   private processed: Set<string>;
   private log: string[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -47,8 +47,9 @@ export class L1AutoWorker {
   constructor(
     private readonly agentId: string,
     readonly batchSize: number,
+    store: L1Store,
   ) {
-    this.store = l1StoreFor(agentId);
+    this.store = store;
     this.processed = this.readProcessed();
   }
 
@@ -160,7 +161,7 @@ export class L1AutoWorker {
                 sourceEntryId: entry.id,
                 fromModel,
               };
-              this.store.upsert(fact);
+              void this.store.upsert(fact);
             });
             extracted += triplets.length;
             this.logEntry(
@@ -192,11 +193,15 @@ export class L1AutoWorker {
 
 const workers = new Map<string, L1AutoWorker>();
 
-export function l1WorkerFor(agentId: string, batchSize: number) {
+export function l1WorkerFor(
+  agentId: string,
+  batchSize: number,
+  store: L1Store,
+) {
   let worker = workers.get(agentId);
-  if (!worker || worker.batchSize !== batchSize) {
+  if (!worker || worker.batchSize !== batchSize || worker.store !== store) {
     worker?.stop();
-    worker = new L1AutoWorker(agentId, batchSize);
+    worker = new L1AutoWorker(agentId, batchSize, store);
     workers.set(agentId, worker);
   }
   return worker;

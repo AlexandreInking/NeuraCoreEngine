@@ -7,6 +7,16 @@ import {
 } from './l1/embedder';
 import { extractSpo, type SpoTriplet } from './l1/extractor';
 import { l1StoreFor, type L1Store } from './l1/store';
+import {
+  QdrantL1Store,
+  qdrantAvailable,
+  createCollection,
+  listCollections,
+  readQdrantConfig,
+  saveQdrantConfig,
+  DEFAULT_QDRANT_CONFIG,
+  type QdrantConfig,
+} from './l1/qdrant';
 import { l1WorkerFor, type L1AutoWorker } from './l1/worker';
 import {
   DEFAULT_L1_CONFIG,
@@ -109,7 +119,7 @@ export default function L1Panel({
   agentId: string;
   deepSeekConfig: DeepSeekConfig;
 }) {
-  const store: L1Store = useMemo(() => l1StoreFor(agentId), [agentId]);
+  const [store, setStore] = useState<L1Store>(() => l1StoreFor(agentId));
   const workerRef = useRef<L1AutoWorker | null>(null);
   const [, setTick] = useState(0);
   const refresh = () => setTick((value) => value + 1);
@@ -136,13 +146,49 @@ export default function L1Panel({
   const [autoOn, setAutoOn] = useState(store.config.autoExtract);
   const [pending, setPending] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
+  const [factsCount, setFactsCount] = useState(0);
+
+  // Qdrant connection state
+  const [qdrantConfig, setQdrantConfig] =
+    useState<QdrantConfig>(readQdrantConfig);
+  const [qdrantStatus, setQdrantStatus] = useState<
+    'checking' | 'online' | 'offline'
+  >('checking');
+  const [usingQdrant, setUsingQdrant] = useState(
+    () => globalThis.localStorage.getItem('neuracore-l1-mode') === 'qdrant',
+  );
+  const [collections, setCollections] = useState<string[]>([]);
+  const [qdrantBusy, setQdrantBusy] = useState(false);
+  const [qdrantError, setQdrantError] = useState('');
 
   const embedding = embeddingStatus();
 
   useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      const available = await qdrantAvailable(qdrantConfig);
+      if (cancelled) return;
+      setQdrantStatus(available ? 'online' : 'offline');
+      if (available) {
+        listCollections(qdrantConfig)
+          .then(setCollections)
+          .catch(() => undefined);
+      }
+    };
+    void check();
+    const timer = setInterval(check, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // (re)create the worker bound to the active store
+  useEffect(() => {
     const worker = l1WorkerFor(
       agentId,
       store.config.batchSize || DEFAULT_L1_CONFIG.batchSize,
+      store,
     );
     workerRef.current = worker;
     if (store.config.autoExtract) {
@@ -156,7 +202,59 @@ export default function L1Panel({
       setLogs(worker.logs());
     }, 2000);
     return () => clearInterval(timer);
-  }, [agentId]);
+  }, [agentId, store]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [count] = await Promise.all([store.count()]);
+      if (!cancelled) setFactsCount(count);
+    };
+    void load();
+    const timer = setInterval(() => {
+      store
+        .count()
+        .then(setFactsCount)
+        .catch(() => undefined);
+    }, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [store]);
+
+  const activateQdrant = async () => {
+    setQdrantBusy(true);
+    setQdrantError('');
+    try {
+      saveQdrantConfig(qdrantConfig);
+      const available = await qdrantAvailable(qdrantConfig);
+      if (!available) {
+        setQdrantStatus('offline');
+        throw new Error('Qdrant no está disponible en ese host:puerto.');
+      }
+      setQdrantStatus('online');
+      const collection = `tenant_${agentId}_l1_facts`;
+      const existing = await listCollections(qdrantConfig);
+      setCollections(existing);
+      if (!existing.includes(collection)) {
+        await createCollection(qdrantConfig, collection, EMBEDDING_DIMENSION);
+      }
+      setStore(new QdrantL1Store(agentId, qdrantConfig));
+      globalThis.localStorage.setItem('neuracore-l1-mode', 'qdrant');
+      setUsingQdrant(true);
+    } catch (error) {
+      setQdrantError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setQdrantBusy(false);
+    }
+  };
+
+  const deactivateQdrant = () => {
+    globalThis.localStorage.setItem('neuracore-l1-mode', 'local');
+    setUsingQdrant(false);
+    setStore(l1StoreFor(agentId));
+  };
 
   const generateEmbedding = async () => {
     const text = embedText.trim();
@@ -204,21 +302,23 @@ export default function L1Panel({
       selected.map((t) => `${t.subject} ${t.predicate} ${t.object}`),
     );
     if (!vectors) return;
-    selected.forEach((triplet, index) => {
+    const now = Date.now();
+    for (let index = 0; index < selected.length; index += 1) {
+      const triplet = selected[index];
       const fact: L1Fact = {
-        id: `fact-${Date.now()}-${index}`,
+        id: `fact-${now}-${index}`,
         subject: triplet.subject,
         predicate: triplet.predicate,
         object: triplet.object,
         certainty: triplet.certainty,
         embedding: Array.from(vectors[index]),
-        createdAt: Date.now(),
-        lastAccessed: Date.now(),
+        createdAt: now,
+        lastAccessed: now,
         accessCount: 0,
         fromModel: spoSource.startsWith('LLM'),
       };
-      store.upsert(fact);
-    });
+      await store.upsert(fact);
+    }
     setTriplets([]);
     setSpoText('');
     setSpoSource('');
@@ -232,7 +332,7 @@ export default function L1Panel({
     const vectors = await embedTexts([text]);
     setSearchBusy(false);
     if (!vectors) return;
-    setSearchResults(store.search(Array.from(vectors[0]), 5, lambda));
+    setSearchResults(await store.search(Array.from(vectors[0]), 5, lambda));
     refresh();
   };
 
@@ -248,8 +348,8 @@ export default function L1Panel({
     refresh();
   };
 
-  const facts = store.all();
   const embeddingReady = embedding.state === 'ready';
+  const collectionName = `tenant_${agentId}_l1_facts`;
 
   return (
     <div className="l1-panel">
@@ -276,10 +376,87 @@ export default function L1Panel({
         </p>
       ) : null}
 
+      <section className="l1-section">
+        <div className="cognitive-section-heading">
+          <span className="section-kicker">VECTOR DB</span>
+          <span className="panel-caption">
+            {usingQdrant ? 'QDRANT · REAL' : 'LOCAL-FIRST · SEAM L1Store'}
+          </span>
+        </div>
+        <div className="l1-qdrant-row">
+          <input
+            className="l1-qdrant-input"
+            value={qdrantConfig.host}
+            aria-label="Qdrant host"
+            onChange={(event) =>
+              setQdrantConfig((current) => ({
+                ...current,
+                host: event.target.value,
+              }))
+            }
+            placeholder="localhost"
+          />
+          <input
+            className="l1-qdrant-input l1-qdrant-port"
+            type="number"
+            value={qdrantConfig.port}
+            aria-label="Qdrant port"
+            onChange={(event) =>
+              setQdrantConfig((current) => ({
+                ...current,
+                port: Number(event.target.value) || DEFAULT_QDRANT_CONFIG.port,
+              }))
+            }
+          />
+          <span
+            className={`surface-badge ${
+              qdrantStatus === 'online' ? 'surface-badge-ready' : ''
+            }`}
+          >
+            {qdrantStatus === 'online'
+              ? 'CONECTADO'
+              : qdrantStatus === 'checking'
+                ? '…'
+                : 'SIN CONEXIÓN'}
+          </span>
+          {usingQdrant ? (
+            <button
+              type="button"
+              className="memory-action"
+              onClick={deactivateQdrant}
+            >
+              Volver a local
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="button-primary"
+              onClick={() => void activateQdrant()}
+              disabled={qdrantBusy}
+            >
+              {qdrantBusy ? 'Conectando…' : 'Activar Qdrant'}
+            </button>
+          )}
+        </div>
+        {qdrantError ? <p className="l1-error">{qdrantError}</p> : null}
+        {usingQdrant ? (
+          <p className="l1-note">
+            Índice: <code>{collectionName}</code> ({EMBEDDING_DIMENSION}d ·
+            Cosine). Colecciones en el servidor:{' '}
+            {collections.length ? collections.join(', ') : '—'}.
+          </p>
+        ) : (
+          <p className="l1-note">
+            El índice vive en localStorage. Activa Qdrant (Docker) para vectores
+            en un servidor real; la búsqueda y el decay son idénticos.
+          </p>
+        )}
+      </section>
+
       <div className="metric-grid l1-metric-grid">
         <article className="metric-card">
           <span className="metric-label">FACTS INDEXED</span>
-          <strong>{facts.length}</strong>
+          <strong>{factsCount}</strong>
           <span className="metric-note">Tripletas SPO vectorizadas</span>
         </article>
         <article className="metric-card">

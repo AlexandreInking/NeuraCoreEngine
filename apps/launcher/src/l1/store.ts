@@ -13,23 +13,23 @@ import {
 export interface L1Store {
   readonly agentId: string;
   config: L1Config;
-  upsert(fact: L1Fact): void;
+  upsert(fact: L1Fact): Promise<void>;
   update(
     id: string,
     patch: Partial<
       Pick<L1Fact, 'subject' | 'predicate' | 'object' | 'certainty'>
     >,
-  ): void;
-  remove(id: string): void;
-  get(id: string): L1Fact | null;
-  all(): L1Fact[];
-  count(): number;
+  ): Promise<void>;
+  remove(id: string): Promise<void>;
+  get(id: string): Promise<L1Fact | null>;
+  all(): Promise<L1Fact[]>;
+  count(): Promise<number>;
   search(
     queryVector: number[],
     topK: number,
     lambda: number,
     now?: number,
-  ): L1SearchResult[];
+  ): Promise<L1SearchResult[]>;
 }
 
 type PersistedL1 = {
@@ -95,7 +95,7 @@ export class LocalL1Store implements L1Store {
     }
   }
 
-  upsert(fact: L1Fact) {
+  async upsert(fact: L1Fact) {
     const existingIndex = this.facts.findIndex((item) => item.id === fact.id);
     if (existingIndex >= 0) {
       this.facts[existingIndex] = fact;
@@ -105,7 +105,7 @@ export class LocalL1Store implements L1Store {
     this.save();
   }
 
-  update(
+  async update(
     id: string,
     patch: Partial<
       Pick<L1Fact, 'subject' | 'predicate' | 'object' | 'certainty'>
@@ -117,24 +117,24 @@ export class LocalL1Store implements L1Store {
     this.save();
   }
 
-  remove(id: string) {
+  async remove(id: string) {
     this.facts = this.facts.filter((fact) => fact.id !== id);
     this.save();
   }
 
-  get(id: string) {
+  async get(id: string) {
     return this.facts.find((fact) => fact.id === id) ?? null;
   }
 
-  all() {
+  async all() {
     return [...this.facts];
   }
 
-  count() {
+  async count() {
     return this.facts.length;
   }
 
-  search(
+  async search(
     queryVector: number[],
     topK: number,
     lambda: number,
