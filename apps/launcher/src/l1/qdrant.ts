@@ -87,7 +87,7 @@ export async function createCollection(
   }
 }
 
-/** Deterministic 128-bit hash of the fact id → valid Qdrant point UUID. */
+/** Deterministic 128-bit hash of the fact id → valid Qdrant point UUID (v4 shape). */
 export function idToUuid(id: string) {
   let h1 = 0x9e3779b9;
   let h2 = 0x85ebca6b;
@@ -98,12 +98,16 @@ export function idToUuid(id: string) {
   }
   h1 >>>= 0;
   h2 >>>= 0;
-  const hex = (value: number) => value.toString(16).padStart(8, '0');
-  const s = `${hex(h1)}${hex(h2)}${hex(h1 ^ h2)}${hex(h2 ^ h1)}`;
-  return `${s.slice(0, 8)}-${s.slice(8, 12)}-4${s.slice(13, 16)}-${(
-    (h1 & 0x3f) |
-    0x80
-  ).toString(16)}${s.slice(17, 20)}-${s.slice(20, 32)}`;
+  const mix = (h1 ^ h2) >>> 0;
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < 16; i += 1) {
+    const source = i < 4 ? h1 : i < 8 ? h2 : i < 12 ? mix : (mix ^ (i * 0x9e3779b9)) >>> 0;
+    bytes[i] = (source >>> ((i % 4) * 8)) & 0xff;
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 export class QdrantL1Store implements L1Store {

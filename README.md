@@ -37,7 +37,7 @@ El buffer circular L0 está implementado **local-first** (`apps/launcher/src/l0/
 
 La capa L1 extrae **hechos atómicos SPO** (sujeto-predicado-objeto) de las entradas L0 y los indexa como vectores consultables (`apps/launcher/src/l1/`), local-first con semántica Qdrant: colección de facts con embeddings 384-d, búsqueda cosine Top-K=5 con **decay temporal** `score = cos · e^(−λ·Δt)` y λ configurable (0.01–0.5).
 
-Los embeddings se generan **100% en el webview** con `@huggingface/transformers` + `all-MiniLM-L6-v2` (ONNX, descarga única, sin API externa ni Ollama). El **extractor SPO** usa el LLM configurado (DeepSeek) con fallback heurístico local, tripletas editables y filtro de certeza ≥ 75%. Un **worker de auto-extracción** procesa cada N=5 entradas nuevas del buffer L0 (polling local en lugar de `XREAD BLOCK`), con badge de pendientes y log. Todo vive en el panel *Memory > L1 Atomic Facts Index*. La interfaz `L1Store` queda como seam para un futuro adaptador Qdrant real.
+Los embeddings se generan **100% en el webview** con `@huggingface/transformers` + `all-MiniLM-L6-v2` (ONNX, descarga única, sin API externa ni Ollama). El **extractor SPO** usa el LLM configurado (DeepSeek) con fallback heurístico local, tripletas editables y filtro de certeza ≥ 75%. Un **worker de auto-extracción** procesa cada N=5 entradas nuevas del buffer L0 (polling local en lugar de `XREAD BLOCK`), con badge de pendientes y log. El panel *Memory > L1 Atomic Facts Index* permite **Activar Qdrant**: detecta un servidor Qdrant en Docker (`localhost:6333`), crea la colección `tenant_{agent}_l1_facts` (384d, Cosine) e indexa/busca en Qdrant real; si Docker no está disponible, el mismo seam `L1Store` usa la implementación local en `localStorage`.
 
 ## Memoria visual y editable
 
