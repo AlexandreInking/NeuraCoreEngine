@@ -40,6 +40,7 @@ import {
 } from './cognition/types';
 import ChatsPage from './chat/ChatsPage';
 import { providerManager } from './llm';
+import { TenantAdminPanel } from './tenant/TenantAdminPanel';
 import { LlmProvidersSettings } from './LlmProvidersSettings';
 import { autoPlaceArtifact, parseArtifacts } from './chat/artifacts';
 import type { Chat, ChatMessage } from './chat/types';
@@ -1305,6 +1306,7 @@ function SettingsPage({
       </article>
 
       <LlmProvidersSettings />
+      <TenantAdminPanel />
     </Page>
   );
 }
