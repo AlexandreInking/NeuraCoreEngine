@@ -1440,6 +1440,13 @@ function LauncherShell() {
       role: 'assistant',
       content: '…',
       createdAt: new Date().toISOString(),
+      vad: engine.state.emotions
+        ? {
+            valence: engine.state.emotions.valence,
+            arousal: engine.state.emotions.arousal,
+            dominance: engine.state.emotions.dominance,
+          }
+        : undefined,
     };
     setChats((current) =>
       current.map((chat) =>
@@ -1860,6 +1867,7 @@ function LauncherShell() {
                   activeChatId={activeChatId}
                   deepSeekConfigured={Boolean(deepSeekConfig.apiKey.trim())}
                   cognition={cognitionState}
+                  agentId={projectConfig.agentName}
                   onNewChat={createNewChat}
                   onSelectChat={setActiveChatId}
                   onSend={(content) => void sendChatMessage(content)}

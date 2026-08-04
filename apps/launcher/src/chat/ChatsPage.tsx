@@ -16,6 +16,9 @@ import {
   INTENTION_LABELS,
   type PredictedIntent,
 } from '../intention';
+import { l1StoreFor, l1WorkerFor } from '../l1';
+import { l2StoreFor } from '../l2';
+import { uiHexFor } from '../vad/ssml';
 
 const COGNITION_WINDOW_KEY = 'neuracore-cognition-window';
 
@@ -138,6 +141,7 @@ export default function ChatsPage({
   activeChatId,
   cognition,
   deepSeekConfigured,
+  agentId,
   onNewChat,
   onSelectChat,
   onSend,
@@ -147,6 +151,7 @@ export default function ChatsPage({
   activeChatId: string;
   cognition: CognitiveState | null;
   deepSeekConfigured: boolean;
+  agentId: string;
   onNewChat: () => void;
   onSelectChat: (chatId: string) => void;
   onSend: (content: string) => void;
@@ -156,6 +161,11 @@ export default function ChatsPage({
   const [draft, setDraft] = useState('');
   const intentionCapture = useIntentionCapture();
   const [lastPrediction, setLastPrediction] = useState<PredictedIntent | null>(null);
+  const [contextChip, setContextChip] = useState<{ l2: string | null; l1: number }>({
+    l2: null,
+    l1: 0,
+  });
+  const [autoExtractNote, setAutoExtractNote] = useState('');
   const [railOpen, setRailOpen] = useState(true);
   const [cognitionWindow, setCognitionWindow] = useState<CognitionWindowState>(
     () =>
@@ -378,6 +388,74 @@ export default function ChatsPage({
     onSend(content);
   };
 
+  // Live cognitive context chip: active L2 scenario + indexed L1 facts.
+  useEffect(() => {
+    const refreshContext = () => {
+      try {
+        const l2 = l2StoreFor(agentId).active();
+        void l1StoreFor(agentId)
+          .count()
+          .then((count) => setContextChip({ l2: l2?.name ?? null, l1: count }));
+      } catch {
+        // stores unavailable
+      }
+    };
+    refreshContext();
+    const timer = setInterval(refreshContext, 8000);
+    return () => clearInterval(timer);
+  }, [agentId]);
+
+  // Auto-extraction L0 → L1 every 5 assistant turns (hito 7.4).
+  const assistantTurns =
+    activeChat?.messages.filter((m) => m.role === 'assistant').length ?? 0;
+  useEffect(() => {
+    if (assistantTurns > 0 && assistantTurns % 5 === 0) {
+      try {
+        const store = l1StoreFor(agentId);
+        const worker = l1WorkerFor(agentId, 5, store);
+        void worker.drain().then(() =>
+          setAutoExtractNote(`Auto-extracción L1 completada (turno ${assistantTurns})`),
+        );
+      } catch {
+        // best-effort
+      }
+    }
+  }, [assistantTurns, agentId]);
+
+  const exportConversation = (format: 'json' | 'txt') => {
+    if (!activeChat) return;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `chat_${activeChat.title || 'conversation'}_${timestamp}.${format}`;
+    const payload =
+      format === 'json'
+        ? JSON.stringify(
+            {
+              chat: activeChat.title,
+              exportedAt: new Date().toISOString(),
+              messages: activeChat.messages.map((m) => ({
+                role: m.role,
+                content: m.content,
+                vad: m.vad ?? null,
+                createdAt: m.createdAt,
+              })),
+            },
+            null,
+            2,
+          )
+        : activeChat.messages
+            .map((m) => `[${m.role.toUpperCase()}] ${m.content}`)
+            .join('\n\n');
+    const blob = new Blob([payload], {
+      type: format === 'json' ? 'application/json' : 'text/plain',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Window manager: every open window, for finding/restoring/centering.
   const windowList: Array<{
     id: string;
@@ -563,6 +641,33 @@ export default function ChatsPage({
                               ? 'online'
                               : 'local'}
                         </span>
+                        <span className="chat-context-chip" title="Memoria activa">
+                          L2: {contextChip.l2 ?? '—'} · L1: {contextChip.l1} facts
+                        </span>
+                        <button
+                          type="button"
+                          className="memory-action"
+                          onClick={() => exportConversation('json')}
+                          title="Exportar conversación (JSON)"
+                        >
+                          Export
+                        </button>
+                        <button
+                          type="button"
+                          className="memory-action"
+                          onClick={() => exportConversation('txt')}
+                          title="Exportar conversación (TXT)"
+                        >
+                          TXT
+                        </button>
+                        <button
+                          type="button"
+                          className="memory-action memory-action-danger"
+                          onClick={onNewChat}
+                          title="Nueva sesión"
+                        >
+                          Nueva
+                        </button>
                       </div>
                       <div className="chat-messages">
                         {activeChat.messages.length === 0 && !sending ? (
@@ -582,6 +687,13 @@ export default function ChatsPage({
                           >
                             <span className="chat-message-role">
                               {message.role === 'user' ? 'TÚ' : 'NEURA'}
+                              {message.vad ? (
+                                <span
+                                  className="chat-vad-dot"
+                                  style={{ background: uiHexFor(message.vad) }}
+                                  title={`VAD: V ${message.vad.valence.toFixed(2)} A ${message.vad.arousal.toFixed(2)} D ${message.vad.dominance.toFixed(2)}`}
+                                />
+                              ) : null}
                             </span>
                             <p>
                               {message.content === '…' ? (
@@ -636,6 +748,8 @@ export default function ChatsPage({
                             <span className="intention-chip used" title="Enviado con contexto predictivo">
                               ⚡ Enviado con predicción: {INTENTION_LABELS[lastPrediction.type]}
                             </span>
+                          ) : autoExtractNote ? (
+                            <span className="intention-chip used">{autoExtractNote}</span>
                           ) : (
                             <span>Enter para enviar</span>
                           )}

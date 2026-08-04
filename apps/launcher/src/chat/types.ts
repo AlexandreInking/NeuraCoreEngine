@@ -7,6 +7,8 @@ export type ChatMessage = {
   createdAt: string;
   /** Whether the typewriter reveal has finished (assistant messages only). */
   revealed?: boolean;
+  /** VAD snapshot of the agent at the moment this message was produced. */
+  vad?: { valence: number; arousal: number; dominance: number };
 };
 
 export type Chat = {
