@@ -21,6 +21,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Psicología profunda: arquetipos jungianos, sombra, mecanismos de defensa, jerarquía de Maslow, apego, marcadores somáticos, emociones de Ekman, inteligencia emocional y alineación corazón-mente.',
       'Página Affect Engine: aura emocional, VAD, rueda de Plutchik, simulador de estímulos y decaimiento.',
       'Dashboard con snapshot cognitivo en vivo y memoria de trabajo (7±2) en la página Memory.',
+      'Chat como escritorio de ventanas: conversación, panel cognitivo y artefactos (gráficos, código, notas, tablas, diagramas) movibles, redimensionables y minimizables.',
+      'Artefactos del agente: bloques ```chart / ```code / ```note / ```table / ```mermaid se abren en ventanas separadas con chips enlazados en el mensaje.',
+      'Corrección de layout: la barra lateral ya no se corta y el contenido principal evita el desbordamiento horizontal.',
     ],
   },
 ];

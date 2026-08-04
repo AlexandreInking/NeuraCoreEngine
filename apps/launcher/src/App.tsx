@@ -11,7 +11,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -23,7 +22,6 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { CHANGELOG } from './changelog';
-import CognitivePanel from './CognitivePanel';
 import MemoryPage from './MemoryPage';
 import AffectEnginePage from './AffectEnginePage';
 import {
@@ -40,6 +38,9 @@ import {
   ATTACHMENT_LABELS,
   EMOTION_LABELS,
 } from './cognition/types';
+import ChatsPage from './chat/ChatsPage';
+import { autoPlaceArtifact, parseArtifacts } from './chat/artifacts';
+import type { Chat, ChatMessage } from './chat/types';
 
 const VERSION = 'v0.1.0-alpha';
 
@@ -103,21 +104,6 @@ type UpdateStatus =
   | 'installed'
   | 'up-to-date'
   | 'error';
-
-type ChatMessage = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  createdAt: string;
-};
-
-type Chat = {
-  id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-  messages: ChatMessage[];
-};
 
 function Logo() {
   return (
@@ -309,6 +295,8 @@ function createChat(title = 'New chat'): Chat {
     createdAt: now,
     updatedAt: now,
     messages: [],
+    artifacts: [],
+    windowState: { x: 24, y: 24, w: 420, h: 480, z: 10, minimized: false },
   };
 }
 
@@ -336,12 +324,30 @@ function isChat(value: unknown): value is Chat {
   );
 }
 
+/** Normalize persisted chats (older versions lack artifacts/windowState). */
+function normalizeChat(chat: Chat): Chat {
+  return {
+    ...chat,
+    artifacts: Array.isArray(chat.artifacts) ? chat.artifacts : [],
+    windowState: chat.windowState ?? {
+      x: 24,
+      y: 24,
+      w: 420,
+      h: 480,
+      z: 10,
+      minimized: false,
+    },
+  };
+}
+
 function readSavedChats(): Chat[] {
   try {
     const saved = globalThis.localStorage.getItem(CHATS_STORAGE_KEY);
     if (!saved) return [createChat()];
     const parsed: unknown = JSON.parse(saved);
-    const chats = Array.isArray(parsed) ? parsed.filter(isChat) : [];
+    const chats = Array.isArray(parsed)
+      ? parsed.filter(isChat).map(normalizeChat)
+      : [];
     return chats.length ? chats : [createChat()];
   } catch {
     return [createChat()];
@@ -773,178 +779,6 @@ function DashboardPage({
           <strong>Memory. Affect. Agency.</strong>
           <span>Neura-Core cognitive engine</span>
         </article>
-      </div>
-    </Page>
-  );
-}
-
-function ChatsPage({
-  chats,
-  activeChatId,
-  deepSeekConfigured,
-  cognition,
-  onNewChat,
-  onSelectChat,
-  onSend,
-}: {
-  chats: Chat[];
-  activeChatId: string;
-  deepSeekConfigured: boolean;
-  cognition: CognitiveState | null;
-  onNewChat: () => void;
-  onSelectChat: (chatId: string) => void;
-  onSend: (content: string) => void;
-}) {
-  const [draft, setDraft] = useState('');
-  const [panelOpen, setPanelOpen] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
-  const sending = activeChat?.messages.some(
-    (message) => message.role === 'assistant' && message.content === '…',
-  );
-
-  useEffect(() => {
-    setDraft('');
-  }, [activeChat?.id]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeChat?.messages.length]);
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const content = draft.trim();
-    if (!content || sending || !activeChat) return;
-    setDraft('');
-    onSend(content);
-  };
-
-  if (!activeChat) return null;
-
-  return (
-    <Page
-      eyebrow="CONVERSATION LAYER"
-      title="Chats"
-      description="Create separate conversations while keeping one shared cognitive state panel."
-    >
-      <div className="chat-toolbar">
-        <div>
-          <span className="section-kicker">MULTI-CHAT WORKSPACE</span>
-          <p className="chat-toolbar-note">
-            {deepSeekConfigured
-              ? 'DeepSeek connected locally.'
-              : 'Connect DeepSeek in Settings to send messages.'}
-          </p>
-        </div>
-        <button
-          className="button-ghost"
-          type="button"
-          aria-expanded={panelOpen}
-          onClick={() => setPanelOpen((current) => !current)}
-        >
-          {panelOpen ? 'Hide summary' : 'Show summary'}
-        </button>
-      </div>
-      <div
-        className={`chat-layout ${panelOpen ? '' : 'chat-layout-collapsed'}`}
-      >
-        <aside className="chat-list" aria-label="Chat list">
-          <div className="chat-list-header">
-            <div>
-              <span className="section-kicker">CONVERSATIONS</span>
-              <strong>{chats.length}</strong>
-            </div>
-            <button
-              className="chat-new-button"
-              type="button"
-              onClick={onNewChat}
-              aria-label="Create new chat"
-              title="Create new chat"
-            >
-              +
-            </button>
-          </div>
-          <div className="chat-list-items">
-            {chats.map((chat) => (
-              <button
-                className={`chat-list-item ${chat.id === activeChat.id ? 'active' : ''}`}
-                type="button"
-                key={chat.id}
-                onClick={() => onSelectChat(chat.id)}
-              >
-                <span>{chat.title}</span>
-                <small>{chat.messages.length} messages</small>
-              </button>
-            ))}
-          </div>
-        </aside>
-        <section className="chat-conversation" aria-label="Active conversation">
-          <header className="chat-conversation-header">
-            <div>
-              <span className="section-kicker">ACTIVE CHAT</span>
-              <h3>{activeChat.title}</h3>
-            </div>
-            <span
-              className={`chat-status ${deepSeekConfigured ? 'ready' : ''}`}
-            >
-              {deepSeekConfigured ? 'DEEPSEEK READY' : 'LOCAL ONLY'}
-            </span>
-          </header>
-          <div className="chat-messages" aria-live="polite">
-            {!activeChat.messages.length ? (
-              <div className="chat-empty">
-                <div className="empty-icon">
-                  <Icon name="chats" />
-                </div>
-                <strong>Start a new conversation</strong>
-                <span>Each chat keeps its own message history.</span>
-              </div>
-            ) : (
-              activeChat.messages.map((message) => (
-                <article
-                  className={`chat-message ${message.role}`}
-                  key={message.id}
-                >
-                  <span className="chat-message-role">
-                    {message.role === 'user' ? 'You' : 'Neura-Core'}
-                  </span>
-                  <p>{message.content}</p>
-                </article>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-          <form className="chat-composer" onSubmit={submit}>
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Write a message…"
-              rows={3}
-              disabled={sending}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <div className="composer-footer">
-              <span>
-                {sending
-                  ? 'Waiting for DeepSeek…'
-                  : 'Enter to send · Shift + Enter for a new line'}
-              </span>
-              <button
-                className="button-primary"
-                type="submit"
-                disabled={sending || !draft.trim()}
-              >
-                {sending ? 'Sending…' : 'Send'} <Icon name="arrow" />
-              </button>
-            </div>
-          </form>
-        </section>
-        {panelOpen ? <CognitivePanel cognition={cognition} /> : null}
       </div>
     </Page>
   );
@@ -1619,6 +1453,18 @@ function LauncherShell() {
       ]);
       engine.recordAssistantReply(response);
       setCognitionState({ ...engine.state });
+
+      // Extract fenced blocks (charts, code, tables…) into desktop windows.
+      const parsed = parseArtifacts(response);
+      const windows = parsed.artifacts.map((artifact, index) =>
+        autoPlaceArtifact(
+          artifact.window,
+          targetChat.artifacts.length + index,
+          targetChat.windowState.x,
+          targetChat.windowState.y,
+        ),
+      );
+
       setChats((current) =>
         current.map((chat) =>
           chat.id === targetChatId
@@ -1626,9 +1472,10 @@ function LauncherShell() {
                 ...chat,
                 messages: chat.messages.map((message) =>
                   message.id === pendingMessage.id
-                    ? { ...message, content: response }
+                    ? { ...message, content: parsed.text }
                     : message,
                 ),
+                artifacts: [...chat.artifacts, ...windows],
                 updatedAt: new Date().toISOString(),
               }
             : chat,
@@ -1680,6 +1527,12 @@ function LauncherShell() {
     if (!engine) return;
     engine.tickDecay(1);
     setCognitionState({ ...engine.state });
+  };
+
+  const updateChat = (nextChat: Chat) => {
+    setChats((current) =>
+      current.map((chat) => (chat.id === nextChat.id ? nextChat : chat)),
+    );
   };
 
   const saveDeepSeek = (nextConfig: DeepSeekConfig) => {
@@ -1919,6 +1772,7 @@ function LauncherShell() {
                   onNewChat={createNewChat}
                   onSelectChat={setActiveChatId}
                   onSend={(content) => void sendChatMessage(content)}
+                  onUpdateChat={updateChat}
                 />
               }
             />

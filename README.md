@@ -21,6 +21,10 @@ Desde la versión alpha, el launcher ejecuta un motor cognitivo **local-first** 
 
 Todo el estado persiste en `localStorage` del launcher (clave por agente). El modelo por defecto es `deepseek-v4-flash-0731`, configurable en Settings. El mundo interior se refleja en el Dashboard, el panel cognitivo de Chats, la página Affect Engine y la página Memory.
 
+## Chat como escritorio de ventanas
+
+La pestaña Chats es un escritorio donde la conversación, el panel cognitivo y los artefactos del agente viven en ventanas independientes movibles, redimensionables, minimizables y cerrables. Cuando el modelo responde con bloques ```` ```chart ````, ```` ```code ````, ```` ```note ````, ```` ```table ```` o ```` ```mermaid ````, cada bloque se abre en su propia ventana (gráficos SVG, código con botón de copiado, notas, tablas y diagramas); el mensaje conserva un chip que enfoca la ventana. Las posiciones persisten por conversación en `localStorage`.
+
 ## Actualizaciones firmadas
 
 El launcher consulta GitHub Releases en producción y solo acepta artefactos cuya firma coincida con la clave pública incluida en `apps/launcher/src-tauri/tauri.conf.json`. El botón de actualización descarga e instala el bundle firmado; una firma inválida se rechaza.
