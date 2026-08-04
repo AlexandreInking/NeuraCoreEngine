@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useRef,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -7,8 +6,6 @@ import {
 } from 'react';
 import type { ArtifactKind } from './artifacts';
 import { ARTIFACT_ICONS } from './artifacts';
-
-export type WindowBounds = { width: number; height: number };
 
 export default function WindowFrame({
   title,
@@ -21,12 +18,12 @@ export default function WindowFrame({
   minimized,
   focused,
   accent,
-  bounds,
   onFocus,
   onMove,
   onResize,
   onClose,
   onMinimize,
+  onCenter,
   children,
   resizable = true,
 }: {
@@ -40,12 +37,12 @@ export default function WindowFrame({
   minimized: boolean;
   focused: boolean;
   accent?: string;
-  bounds: WindowBounds;
   onFocus: () => void;
   onMove: (x: number, y: number) => void;
   onResize: (width: number, height: number) => void;
   onClose?: () => void;
   onMinimize?: () => void;
+  onCenter?: () => void;
   children: ReactNode;
   resizable?: boolean;
 }) {
@@ -62,15 +59,6 @@ export default function WindowFrame({
     origH: number;
   } | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
-
-  const clampX = useCallback(
-    (value: number) => Math.max(0, Math.min(value, bounds.width - 64)),
-    [bounds.width],
-  );
-  const clampY = useCallback(
-    (value: number) => Math.max(0, Math.min(value, bounds.height - 36)),
-    [bounds.height],
-  );
 
   const onTitlePointerDown = (event: ReactPointerEvent) => {
     if (event.button !== 0) return;
@@ -89,13 +77,17 @@ export default function WindowFrame({
     const drag = dragRef.current;
     if (!drag) return;
     onMove(
-      clampX(drag.origX + event.clientX - drag.startX),
-      clampY(drag.origY + event.clientY - drag.startY),
+      drag.origX + event.clientX - drag.startX,
+      drag.origY + event.clientY - drag.startY,
     );
   };
 
   const onTitlePointerUp = () => {
     dragRef.current = null;
+  };
+
+  const onTitleDoubleClick = () => {
+    if (onCenter) onCenter();
   };
 
   const onResizePointerDown = (event: ReactPointerEvent) => {
@@ -116,13 +108,13 @@ export default function WindowFrame({
     if (!resize) return;
     const minWidth = 220;
     const minHeight = 140;
-    const nextW = Math.min(
-      bounds.width,
-      Math.max(minWidth, resize.origW + event.clientX - resize.startX),
+    const nextW = Math.max(
+      minWidth,
+      resize.origW + event.clientX - resize.startX,
     );
-    const nextH = Math.min(
-      bounds.height,
-      Math.max(minHeight, resize.origH + event.clientY - resize.startY),
+    const nextH = Math.max(
+      minHeight,
+      resize.origH + event.clientY - resize.startY,
     );
     onResize(Math.round(nextW), Math.round(nextH));
   };
@@ -138,8 +130,6 @@ export default function WindowFrame({
         : kind
           ? ARTIFACT_ICONS[kind]
           : null;
-  const safeX = clampX(x);
-  const safeY = clampY(y);
 
   return (
     <div
@@ -150,8 +140,8 @@ export default function WindowFrame({
           ? { zIndex: z }
           : ({
               zIndex: z,
-              left: safeX,
-              top: safeY,
+              left: x,
+              top: y,
               width: w,
               height: h,
               '--window-accent': accent ?? 'var(--indigo)',
@@ -166,7 +156,8 @@ export default function WindowFrame({
             onPointerDown={onTitlePointerDown}
             onPointerMove={onTitlePointerMove}
             onPointerUp={onTitlePointerUp}
-            title="Drag to move"
+            onDoubleClick={onTitleDoubleClick}
+            title="Drag to move · double-click to center"
           >
             {icon ? <span className="window-icon">{icon}</span> : null}
             <strong className="window-title">{title}</strong>

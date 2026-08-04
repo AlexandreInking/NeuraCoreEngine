@@ -25,7 +25,13 @@ Todo el estado persiste en `localStorage` del launcher (clave por agente). El mo
 
 La pestaña Chats es un escritorio donde la conversación, el panel cognitivo y los artefactos del agente viven en ventanas independientes movibles, redimensionables, minimizables y cerrables. Cuando el modelo responde con bloques ```` ```chart ````, ```` ```code ````, ```` ```note ````, ```` ```table ```` o ```` ```mermaid ````, cada bloque se abre en su propia ventana (gráficos SVG, código con botón de copiado, notas, tablas y diagramas); el mensaje conserva un chip que enfoca la ventana. Las posiciones persisten por conversación en `localStorage`.
 
-El canvas es un mundo finito desplazable: las ventanas pueden colocarse fuera de la vista y se recorre con la rueda o arrastrando con el botón central del ratón. Los mensajes del agente se revelan con efecto máquina de escribir (~256 PPM) y el System Prompt le pide mensajes mayormente cortos con emojis solo cuando aportan (2-5%).
+El canvas es un escritorio de ventanas: las ventanas pueden colocarse en cualquier punto y la vista se mueve con el modo Pan o el botón central del ratón. Los mensajes del agente se revelan con efecto máquina de escribir (~256 PPM) y el System Prompt le pide mensajes mayormente cortos con emojis solo cuando aportan (2-5%).
+
+El canvas es ahora **infinito y sin barras de desplazamiento**: un gestor de ventanas (taskbar) lista todas las ventanas para encontrarlas y centrarlas, el botón "Center all" las agrupa en la vista, el doble clic en un título centra esa ventana, y el modo Pan (o botón central) mueve la vista. Los scrolls del resto de la app siguen funcionando pero están ocultos visualmente.
+
+## Buffer L0 (hitos 2.1–2.5)
+
+El buffer circular L0 está implementado **local-first** (`apps/launcher/src/l0/`) con semántica de Redis Streams: buffer circular `MAXLEN ~ N` configurable, TTL de 24h por sesión, feed en vivo con polling de 1s, prosodia simulada (Pitch/Energy/Speech Rate) con modo auto-simulación de 500ms, exportación a `prosodia_session_YYYYMMDD.json` y cierre de sesiones con resumen. Cada mensaje del chat (usuario y agente) se escribe automáticamente al buffer. La interfaz `L0Store` queda como seam para un futuro adaptador Redis cuando haya Docker.
 
 ## Memoria visual y editable
 

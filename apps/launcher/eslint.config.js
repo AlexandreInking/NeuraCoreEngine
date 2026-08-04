@@ -20,6 +20,8 @@ export default [
         navigator: 'readonly',
         setTimeout: 'readonly',
         PointerEvent: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
       },
     },
     plugins: { '@typescript-eslint': typescriptEslint },

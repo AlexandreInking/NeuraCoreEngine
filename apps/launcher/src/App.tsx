@@ -41,6 +41,8 @@ import {
 import ChatsPage from './chat/ChatsPage';
 import { autoPlaceArtifact, parseArtifacts } from './chat/artifacts';
 import type { Chat, ChatMessage } from './chat/types';
+import { l0StoreFor } from './l0';
+import { DEFAULT_PROSODY } from './l0';
 
 const VERSION = 'v0.1.0-alpha';
 
@@ -1367,6 +1369,9 @@ function LauncherShell() {
       return;
     }
 
+    const agentId = projectConfig?.agentName ?? 'Neura';
+    const l0 = l0StoreFor(agentId);
+
     const now = new Date().toISOString();
     const userMessage: ChatMessage = {
       id: createId('message'),
@@ -1378,6 +1383,7 @@ function LauncherShell() {
       ? targetChat.title
       : content.slice(0, 42) || 'New chat';
     const nextMessages = [...targetChat.messages, userMessage];
+    l0.append('main', agentId, 'user', content, { ...DEFAULT_PROSODY });
 
     setChats((current) =>
       current.map((chat) =>
@@ -1453,6 +1459,7 @@ function LauncherShell() {
       ]);
       engine.recordAssistantReply(response);
       setCognitionState({ ...engine.state });
+      l0.append('main', agentId, 'agent', response, { ...DEFAULT_PROSODY });
 
       // Extract fenced blocks (charts, code, tables…) into desktop windows.
       const parsed = parseArtifacts(response);
@@ -1822,6 +1829,7 @@ function LauncherShell() {
                   onRepressMemory={handleRepressMemory}
                   onDeleteMemory={handleDeleteMemory}
                   onSearch={handleSearchMemories}
+                  agentId={projectConfig.agentName}
                 />
               }
             />

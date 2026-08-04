@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import MemoryGraph from './MemoryGraph';
+import L0Panel from './L0Panel';
 import type { CognitiveState, DreamLog, MemoryUnit } from './cognition/types';
 import { EMOTION_COLORS } from './cognition/types';
 import { emotionOfMemory } from './cognition/memory';
@@ -345,6 +346,7 @@ export default function MemoryPage({
   onRepressMemory,
   onDeleteMemory,
   onSearch,
+  agentId,
 }: {
   cognition: CognitiveState | null;
   onRunDream: () => void;
@@ -354,6 +356,7 @@ export default function MemoryPage({
   onRepressMemory: (id: string) => void;
   onDeleteMemory: (id: string) => void;
   onSearch: (query: string) => RetrievedMemory[];
+  agentId: string;
 }) {
   const summary = cognition
     ? {
@@ -392,6 +395,8 @@ export default function MemoryPage({
         </div>
         <span className="page-version">v0.1.0-alpha</span>
       </div>
+
+      <L0Panel agentId={agentId} />
 
       <div className="memory-toolbar">
         <div>

@@ -3153,19 +3153,23 @@ a:focus-visible {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  background: var(--bg);
-}
-
-.canvas-world {
-  position: relative;
-  flex: 0 0 auto;
+  overflow: hidden;
+  cursor: default;
   background:
     linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    linear-gradient(90deg, var(--border) 1px, transparent 1px), var(--bg);
   background-size: 34px 34px;
+}
+
+.chat-canvas.is-panning {
+  cursor: grabbing;
+}
+
+.canvas-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
 }
 
 .desktop-glow {
@@ -3464,6 +3468,20 @@ a:focus-visible {
 .taskbar-chip:hover {
   color: var(--text);
   border-color: var(--border-strong);
+}
+
+.taskbar-chip.active {
+  color: var(--indigo);
+  border-color: rgba(112, 161, 255, 0.4);
+  background: rgba(30, 58, 138, 0.22);
+}
+
+.taskbar-chip.minimized {
+  opacity: 0.55;
+}
+
+.taskbar-chip.minimized:hover {
+  opacity: 1;
 }
 
 .taskbar-chip span {
@@ -3935,4 +3953,307 @@ a:focus-visible {
   min-height: 34px;
   padding: 0 13px;
   font-size: 0.68rem;
+}
+
+/* Scrollbars hidden globally (scrolling still works) */
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ── L0 Raw Logs panel (hitos 2.1-2.5, local-first) ──────────────── */
+
+.l0-panel {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0 22px;
+}
+
+.l0-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+  box-shadow: 0 12px 40px var(--shadow);
+}
+
+.l0-status-note {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.l0-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.l0-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.l0-form-row .field {
+  margin-top: 0;
+}
+
+.l0-field-grow {
+  flex: 1;
+  min-width: 220px;
+}
+
+.l0-form-row .button-primary,
+.l0-form-row .button-ghost {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.68rem;
+}
+
+.l0-prosody {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.l0-sim-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.prosody-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.prosody-gauge {
+  display: grid;
+  gap: 6px;
+}
+
+.prosody-gauge-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.prosody-gauge-head span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.prosody-gauge-head strong {
+  color: var(--text);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.64rem;
+}
+
+.prosody-gauge-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--border);
+}
+
+.prosody-gauge-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 150ms ease;
+}
+
+.prosody-gauge-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-subtle);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.52rem;
+}
+
+.prosody-sliders {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.prosody-sliders .field {
+  margin-top: 0;
+}
+
+.l0-feed {
+  display: grid;
+  max-height: 480px;
+  align-content: start;
+  gap: 6px;
+  overflow-y: auto;
+  margin-top: 18px;
+}
+
+.l0-feed-entry {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-raised-strong);
+}
+
+.l0-feed-entry.agent {
+  border-color: rgba(112, 161, 255, 0.22);
+}
+
+.l0-feed-entry-head {
+  display: grid;
+  grid-template-columns: 64px 52px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 11px;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+}
+
+.l0-feed-time {
+  color: var(--text-subtle);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.56rem;
+}
+
+.l0-feed-speaker {
+  padding: 2px 5px;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  border-radius: 4px;
+}
+
+.l0-feed-speaker.user {
+  color: var(--indigo);
+  border: 1px solid rgba(112, 161, 255, 0.3);
+  background: rgba(30, 58, 138, 0.2);
+}
+
+.l0-feed-speaker.agent {
+  color: var(--green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.l0-feed-text {
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.l0-feed-raw {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  color: #c7d5f5;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.62rem;
+  line-height: 1.5;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.l0-session-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.l0-session {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-raised-strong);
+}
+
+.l0-session.expiring {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.l0-session-main {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.l0-session-main strong {
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.l0-session-main span {
+  color: var(--text-subtle);
+  font-size: 0.64rem;
+}
+
+.l0-session-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.l0-config {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.l0-config-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.l0-config-fields .field {
+  margin-top: 0;
+}
+
+.l0-summary {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  color: var(--green);
+  font-size: 0.7rem;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.06);
+}
+
+@media (max-width: 900px) {
+  .prosody-grid,
+  .prosody-sliders {
+    grid-template-columns: 1fr;
+  }
 }

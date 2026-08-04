@@ -28,6 +28,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Mensajes humanizados: revelado con máquina de escribir (~256 PPM) y guía al modelo para mensajes mayormente cortos con emojis solo en el 2-5%.',
       'Memoria: grafo de conexiones (tamaño = importancia, color = emoción), búsqueda semántica local, inserción de memorias y edición por capas (debilitar, reprimir, eliminar).',
       'Corrección: el canvas de chat ya no desborda la interfaz; la altura queda bloqueada al viewport con scroll interno y al cambiar de chat la vista vuelve a la ventana de conversación.',
+      'Canvas infinito sin barras de desplazamiento: gestor de ventanas (taskbar con todas las ventanas), botón "Center all", doble clic en el título para centrar y modo Pan.',
+      'Barras de desplazamiento ocultas en toda la app (el scroll sigue funcionando).',
+      'Hito 2.1-2.5: buffer L0 local-first con semántica Redis Streams — buffer circular MAXLEN configurable, TTL por sesión, feed en vivo con polling 1s, prosodia simulada (Pitch/Energy/Speech Rate) con auto-sim 500ms, exportación JSON y cierre de sesiones con resumen.',
+      'El chat escribe automáticamente cada mensaje (usuario y agente) al buffer L0 de la sesión.',
     ],
   },
 ];

@@ -6,7 +6,6 @@ import ArtifactContent from './ArtifactContent';
 import WindowFrame from './WindowFrame';
 import {
   ARTIFACT_ICONS,
-  defaultChatWindowState,
   parseMarker,
   type ArtifactWindow,
   type ChatWindowState,
@@ -14,9 +13,6 @@ import {
 import type { Chat, ChatMessage } from './types';
 
 const COGNITION_WINDOW_KEY = 'neuracore-cognition-window';
-
-/** The chat desktop is a finite canvas the user can pan across. */
-const WORLD_SIZE = { width: 2400, height: 1600 };
 
 type CognitionWindowState = ChatWindowState & { open: boolean };
 
@@ -157,19 +153,22 @@ export default function ChatsPage({
   const [cognitionWindow, setCognitionWindow] = useState<CognitionWindowState>(
     () =>
       readCognitionWindowState(
-        typeof window !== 'undefined' ? window.innerWidth : WORLD_SIZE.width,
+        typeof window !== 'undefined' ? window.innerWidth : 1280,
       ),
   );
   const [topZ, setTopZ] = useState(100);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [panMode, setPanMode] = useState(false);
+  const panModeRef = useRef(false);
+  panModeRef.current = panMode;
   const panRef = useRef<{
     pointerId: number;
     startX: number;
     startY: number;
-    scrollLeft: number;
-    scrollTop: number;
+    origX: number;
+    origY: number;
   } | null>(null);
-  const desktopSize = WORLD_SIZE;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sending = activeChat?.messages.some(
@@ -179,31 +178,39 @@ export default function ChatsPage({
     ? EMOTION_COLORS[cognition.emotions.dominantEmotion]
     : '#70a1ff';
 
-  // Pan the canvas by dragging with the middle mouse button.
+  // Pan the infinite canvas: middle-drag always, or left-drag in pan mode.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 1) return;
+      const panning =
+        event.button === 1 || (event.button === 0 && panModeRef.current);
+      if (!panning) return;
       event.preventDefault();
       panRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        scrollLeft: canvas.scrollLeft,
-        scrollTop: canvas.scrollTop,
+        origX: pan.x,
+        origY: pan.y,
       };
       canvas.setPointerCapture(event.pointerId);
+      canvas.classList.add('is-panning');
     };
     const onPointerMove = (event: PointerEvent) => {
-      const pan = panRef.current;
-      if (!pan || pan.pointerId !== event.pointerId) return;
-      canvas.scrollLeft = pan.scrollLeft - (event.clientX - pan.startX);
-      canvas.scrollTop = pan.scrollTop - (event.clientY - pan.startY);
+      const drag = panRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      setPan({
+        x: drag.origX + (event.clientX - drag.startX),
+        y: drag.origY + (event.clientY - drag.startY),
+      });
     };
     const onPointerUp = (event: PointerEvent) => {
-      if (panRef.current?.pointerId === event.pointerId) panRef.current = null;
+      if (panRef.current?.pointerId === event.pointerId) {
+        panRef.current = null;
+        canvas.classList.remove('is-panning');
+      }
     };
 
     canvas.addEventListener('pointerdown', onPointerDown);
@@ -216,32 +223,16 @@ export default function ChatsPage({
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
     };
-  }, []);
+  }, [pan.x, pan.y]);
 
   useEffect(() => {
     setDraft('');
   }, [activeChat?.id]);
 
-  // When switching chats, bring the conversation window into view if the
-  // canvas was panned elsewhere.
+  // When switching chats, center the conversation window on the viewport.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !activeChat) return;
-    const windowState = activeChat.windowState;
-    const centerX = windowState.x + windowState.w / 2;
-    const centerY = windowState.y + windowState.h / 2;
-    const inView =
-      centerX >= canvas.scrollLeft &&
-      centerX <= canvas.scrollLeft + canvas.clientWidth &&
-      centerY >= canvas.scrollTop &&
-      centerY <= canvas.scrollTop + canvas.clientHeight;
-    if (!inView) {
-      canvas.scrollTo({
-        left: Math.max(0, windowState.x - 24),
-        top: Math.max(0, windowState.y - 24),
-        behavior: 'smooth',
-      });
-    }
+    if (!activeChat) return;
+    centerRect(activeChat.windowState);
   }, [activeChat?.id]);
 
   useEffect(() => {
@@ -324,22 +315,50 @@ export default function ChatsPage({
     updateArtifact(id, { z: bumpZ() });
   };
 
+  /** Pan so a rectangle's center sits on the viewport center. */
+  const centerRect = (rect: { x: number; y: number; w: number; h: number }) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setPan({
+      x: canvas.clientWidth / 2 - (rect.x + rect.w / 2),
+      y: canvas.clientHeight / 2 - (rect.y + rect.h / 2),
+    });
+  };
+
+  const centerAll = () => {
+    if (!activeChat) return;
+    const rects: Array<{ x: number; y: number; w: number; h: number }> = [
+      activeChat.windowState,
+    ];
+    if (cognitionWindow.open) rects.push(cognitionWindow);
+    for (const artifact of activeChat.artifacts) {
+      if (!artifact.minimized) rects.push(artifact);
+    }
+    const minX = Math.min(...rects.map((rect) => rect.x));
+    const minY = Math.min(...rects.map((rect) => rect.y));
+    const maxX = Math.max(...rects.map((rect) => rect.x + rect.w));
+    const maxY = Math.max(...rects.map((rect) => rect.y + rect.h));
+    centerRect({ x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+  };
+
   const resetLayout = () => {
     if (!activeChat) return;
-    const chatWindow = defaultChatWindowState(
-      desktopSize.width,
-      desktopSize.height,
-    );
+    const chatWindow = { x: 0, y: 0, w: 460, h: 520, z: 10, minimized: false };
     const artifacts = activeChat.artifacts.map((artifact, index) => ({
       ...artifact,
-      x: chatWindow.x + 140 + (index % 3) * 36,
-      y: chatWindow.y + 70 + (index % 3) * 36,
+      x: chatWindow.x + 150 + (index % 3) * 36,
+      y: chatWindow.y + 80 + (index % 3) * 36,
       z: 20 + index,
       minimized: false,
     }));
     onUpdateChat({ ...activeChat, windowState: chatWindow, artifacts });
-    setCognitionWindow(defaultCognitionWindowState(desktopSize.width));
+    setCognitionWindow(
+      defaultCognitionWindowState(
+        typeof window !== 'undefined' ? window.innerWidth : 1280,
+      ),
+    );
     setCognitionWindow((current) => ({ ...current, open: true }));
+    setPan({ x: 0, y: 0 });
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -350,22 +369,40 @@ export default function ChatsPage({
     onSend(content);
   };
 
-  const minimizedWindows: Array<{ id: string; label: string; icon: string }> =
-    [];
-  if (activeChat?.windowState.minimized) {
-    minimizedWindows.push({ id: 'chat', label: activeChat.title, icon: '💬' });
+  // Window manager: every open window, for finding/restoring/centering.
+  const windowList: Array<{
+    id: string;
+    label: string;
+    icon: string;
+    minimized: boolean;
+    focused: boolean;
+  }> = [];
+  if (activeChat) {
+    windowList.push({
+      id: 'chat',
+      label: activeChat.title || 'New chat',
+      icon: '💬',
+      minimized: activeChat.windowState.minimized,
+      focused: topZ === activeChat.windowState.z,
+    });
   }
-  if (cognitionWindow.minimized) {
-    minimizedWindows.push({ id: 'cognition', label: 'Cognitive', icon: '🧠' });
+  if (cognitionWindow.open) {
+    windowList.push({
+      id: 'cognition',
+      label: 'Cognitive',
+      icon: '🧠',
+      minimized: cognitionWindow.minimized,
+      focused: topZ === cognitionWindow.z,
+    });
   }
   for (const artifact of activeChat?.artifacts ?? []) {
-    if (artifact.minimized) {
-      minimizedWindows.push({
-        id: artifact.id,
-        label: artifact.title,
-        icon: ARTIFACT_ICONS[artifact.kind],
-      });
-    }
+    windowList.push({
+      id: artifact.id,
+      label: artifact.title,
+      icon: ARTIFACT_ICONS[artifact.kind],
+      minimized: artifact.minimized,
+      focused: topZ === artifact.z,
+    });
   }
 
   return (
@@ -388,6 +425,22 @@ export default function ChatsPage({
             onClick={() => setRailOpen((current) => !current)}
           >
             {railOpen ? 'Hide list' : 'Show list'}
+          </button>
+          <button
+            className={`button-ghost ${panMode ? 'is-active' : ''}`}
+            type="button"
+            title="Mantén pulsado o usa el botón central para mover el canvas"
+            onClick={() => setPanMode((current) => !current)}
+          >
+            {panMode ? 'Panning…' : 'Pan'}
+          </button>
+          <button
+            className="button-ghost"
+            type="button"
+            title="Centra todas las ventanas en la vista"
+            onClick={centerAll}
+          >
+            Center all
           </button>
           <button
             className="button-ghost"
@@ -439,6 +492,13 @@ export default function ChatsPage({
         ) : null}
 
         <div className="chat-canvas" ref={canvasRef}>
+          <div
+            className="desktop-glow"
+            aria-hidden="true"
+            style={{
+              background: `radial-gradient(circle at 30% 20%, ${accent}2e, transparent 55%)`,
+            }}
+          />
           {!activeChat ? (
             <div className="desktop-empty">
               <span className="desktop-empty-icon">💬</span>
@@ -457,16 +517,9 @@ export default function ChatsPage({
             </div>
           ) : (
             <div
-              className="canvas-world"
-              style={{ width: WORLD_SIZE.width, height: WORLD_SIZE.height }}
+              className="canvas-viewport"
+              style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}
             >
-              <div
-                className="desktop-glow"
-                aria-hidden="true"
-                style={{
-                  background: `radial-gradient(circle at 30% 20%, ${accent}2e, transparent 55%)`,
-                }}
-              />
               <>
                 {!activeChat.windowState.minimized ? (
                   <WindowFrame
@@ -480,11 +533,11 @@ export default function ChatsPage({
                     minimized={false}
                     focused={topZ === activeChat.windowState.z}
                     accent={accent}
-                    bounds={desktopSize}
                     onFocus={() => updateChatWindow({ z: bumpZ() })}
                     onMove={(x, y) => updateChatWindow({ x, y })}
                     onResize={(w, h) => updateChatWindow({ w, h })}
                     onMinimize={() => updateChatWindow({ minimized: true })}
+                    onCenter={() => centerRect(activeChat.windowState)}
                   >
                     <div className="chat-window-body">
                       <div className="chat-window-header">
@@ -580,7 +633,6 @@ export default function ChatsPage({
                     minimized={false}
                     focused={topZ === cognitionWindow.z}
                     accent="#a78bfa"
-                    bounds={desktopSize}
                     onFocus={() =>
                       setCognitionWindow((current) => ({
                         ...current,
@@ -605,6 +657,7 @@ export default function ChatsPage({
                         open: false,
                       }))
                     }
+                    onCenter={() => centerRect(cognitionWindow)}
                   >
                     <div className="window-cognition">
                       <CognitivePanel cognition={cognition} />
@@ -625,7 +678,6 @@ export default function ChatsPage({
                       z={artifact.z}
                       minimized={false}
                       focused={topZ === artifact.z}
-                      bounds={desktopSize}
                       onFocus={() => focusArtifact(artifact.id)}
                       onMove={(x, y) => updateArtifact(artifact.id, { x, y })}
                       onResize={(w, h) => updateArtifact(artifact.id, { w, h })}
@@ -633,6 +685,7 @@ export default function ChatsPage({
                         updateArtifact(artifact.id, { minimized: true })
                       }
                       onClose={() => closeArtifact(artifact.id)}
+                      onCenter={() => centerRect(artifact)}
                     >
                       <ArtifactContent artifact={artifact} />
                     </WindowFrame>
@@ -642,20 +695,22 @@ export default function ChatsPage({
             </div>
           )}
 
-          {minimizedWindows.length ? (
+          {windowList.length ? (
             <div
               className="desktop-taskbar"
               role="toolbar"
-              aria-label="Minimized windows"
+              aria-label="Window manager"
             >
-              {minimizedWindows.map((window) => (
+              {windowList.map((window) => (
                 <button
                   key={window.id}
                   type="button"
-                  className="taskbar-chip"
+                  className={`taskbar-chip ${window.focused ? 'active' : ''} ${window.minimized ? 'minimized' : ''}`}
+                  title="Centrar y traer al frente"
                   onClick={() => {
                     if (window.id === 'chat') {
-                      updateChatWindow({ minimized: false });
+                      updateChatWindow({ minimized: false, z: bumpZ() });
+                      centerRect(activeChat.windowState);
                     } else if (window.id === 'cognition') {
                       setCognitionWindow((current) => ({
                         ...current,
@@ -663,11 +718,18 @@ export default function ChatsPage({
                         open: true,
                         z: bumpZ(),
                       }));
+                      centerRect(cognitionWindow);
                     } else {
-                      updateArtifact(window.id, {
-                        minimized: false,
-                        z: bumpZ(),
-                      });
+                      const artifact = activeChat.artifacts.find(
+                        (item) => item.id === window.id,
+                      );
+                      if (artifact) {
+                        updateArtifact(artifact.id, {
+                          minimized: false,
+                          z: bumpZ(),
+                        });
+                        centerRect(artifact);
+                      }
                     }
                   }}
                 >
