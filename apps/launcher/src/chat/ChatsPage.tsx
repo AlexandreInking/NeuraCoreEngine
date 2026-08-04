@@ -222,6 +222,28 @@ export default function ChatsPage({
     setDraft('');
   }, [activeChat?.id]);
 
+  // When switching chats, bring the conversation window into view if the
+  // canvas was panned elsewhere.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !activeChat) return;
+    const windowState = activeChat.windowState;
+    const centerX = windowState.x + windowState.w / 2;
+    const centerY = windowState.y + windowState.h / 2;
+    const inView =
+      centerX >= canvas.scrollLeft &&
+      centerX <= canvas.scrollLeft + canvas.clientWidth &&
+      centerY >= canvas.scrollTop &&
+      centerY <= canvas.scrollTop + canvas.clientHeight;
+    if (!inView) {
+      canvas.scrollTo({
+        left: Math.max(0, windowState.x - 24),
+        top: Math.max(0, windowState.y - 24),
+        behavior: 'smooth',
+      });
+    }
+  }, [activeChat?.id]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.messages.length, activeChat?.artifacts.length]);
