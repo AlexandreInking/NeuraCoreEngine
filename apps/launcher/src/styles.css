@@ -5474,3 +5474,57 @@ a:focus-visible {
   margin-left: 6px;
   vertical-align: middle;
 }
+
+/* ── SDK Output payload (hito 8.x) ──────────────────────────────────── */
+
+.output-panel {
+  margin-top: var(--space-sm);
+}
+
+.output-visor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.output-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.output-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  text-align: left;
+}
+
+.output-section pre {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  border-top: 1px dashed var(--border);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.output-errors {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--danger);
+  font-size: 0.78rem;
+}

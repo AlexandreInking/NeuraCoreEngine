@@ -1,6 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
 import type { DeepSeekConfig } from '../cognition/deepseek';
 import type { VadHistoryPoint } from '../vad/history';
+import { vadQuadrant, uiHexFor, animationTagFor } from '../vad/ssml';
+import { l0StoreFor } from '../l0';
+import { l3ProfileStore } from '../l3';
+import {
+  buildOutputPayload,
+  validatePayload,
+  type NeuraCoreOutputPayload,
+} from '../output';
+import { OutputVisor } from '../output';
 import {
   orchestratorFor,
   type CognitiveOrchestrator,
@@ -81,6 +90,8 @@ export function LiveSessionPanel({
   const [lastVad, setLastVad] = useState<{ valence: number; arousal: number; dominance: number } | null>(null);
   const [vadHistory, setVadHistory] = useState<VadHistoryPoint[]>([]);
   const [lastScenario, setLastScenario] = useState<string | null>(null);
+  const [payload, setPayload] = useState<NeuraCoreOutputPayload | null>(null);
+  const [payloadValid, setPayloadValid] = useState(false);
   const logRef = useRef<string[]>([]);
   const [log, setLog] = useState<string[]>([]);
   const [, setLastLog] = useState(0);
@@ -128,6 +139,24 @@ export function LiveSessionPanel({
       setLastVad(result.vad);
       setVadHistory(result.vadHistory);
       setLastScenario(result.activeScenario);
+      const nextPayload = buildOutputPayload({
+        agentId,
+        sessionId: orchestrator.sessionId,
+        message: result.response,
+        vad: result.vad,
+        quadrant: vadQuadrant(result.vad),
+        hexColor: uiHexFor(result.vad),
+        animationTag: animationTagFor(result.vad),
+        l0Entries: l0StoreFor(agentId).sessions().length,
+        l1FactsUsed: result.topFacts.length,
+        l2Scenario: result.activeScenario,
+        l3Profile: l3ProfileStore().get(agentId)?.personaName ?? null,
+        confidence: 0.8,
+        dominantSystem: null,
+        internalConflict: 0.2,
+      });
+      setPayload(nextPayload);
+      setPayloadValid(validatePayload(nextPayload).valid);
       pushLog(`Pipeline completo · escenario L2: ${result.activeScenario ?? 'ninguno'}`);
     } catch (error) {
       setPipelineError(error instanceof Error ? error.message : String(error));
@@ -222,6 +251,17 @@ export function LiveSessionPanel({
               >
                 Exportar vad_history_{orchestrator.sessionId}.json
               </a>
+            </div>
+          ) : null}
+          {payload ? (
+            <div className="l1-section output-panel">
+              <div className="cognitive-section-heading">
+                <span className="section-kicker">PAYLOAD SDK</span>
+                <span className="panel-caption">
+                  {payloadValid ? 'SCHEMA OK' : 'SCHEMA INVALID'}
+                </span>
+              </div>
+              <OutputVisor payload={payload} />
             </div>
           ) : null}
           {response ? (
