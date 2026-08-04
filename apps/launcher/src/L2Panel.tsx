@@ -118,7 +118,11 @@ function L2Canvas({
       canvas.height = layout.height * 2;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      ctx.fillStyle = '#0d1117';
+      const themeBg =
+        getComputedStyle(document.documentElement)
+          .getPropertyValue('--bg')
+          .trim() || '#0d1117';
+      ctx.fillStyle = themeBg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
       const link = document.createElement('a');
@@ -157,7 +161,7 @@ function L2Canvas({
             cx={layout.width / 2}
             cy={40}
             r={26}
-            fill="#5c6bc0"
+            fill="var(--indigo)"
             stroke="#fff"
             strokeWidth={2}
           />
@@ -179,7 +183,7 @@ function L2Canvas({
                 <path
                   d={`M ${layout.width / 2} 66 C ${layout.width / 2} ${y - 40}, ${x} ${y - 40}, ${x} ${y - 28}`}
                   fill="none"
-                  stroke="#3a3f4b"
+                  stroke="var(--border-strong)"
                   strokeWidth={1.5}
                 />
                 <rect
@@ -232,15 +236,20 @@ function L2Canvas({
                     <path
                       d={`M ${x} ${y + 22} C ${x} ${fact.y - 14}, ${fact.x} ${fact.y - 14}, ${fact.x} ${fact.y - 8}`}
                       fill="none"
-                      stroke="#3a3f4b"
+                      stroke="var(--border-strong)"
                       strokeWidth={1}
                       strokeDasharray="3 3"
                     />
-                    <circle cx={fact.x} cy={fact.y} r={5} fill="#8a93a6" />
+                    <circle
+                      cx={fact.x}
+                      cy={fact.y}
+                      r={5}
+                      fill="var(--text-subtle)"
+                    />
                     <text
                       x={fact.x + 10}
                       y={fact.y + 3}
-                      fill="#c9d1d9"
+                      fill="var(--text-muted)"
                       fontSize={8}
                     >
                       fact {fact.factId.slice(0, 14)}
@@ -696,7 +705,13 @@ export default function L2Panel({
       <ToolCallSimulator onCompressed={saveCompressed} />
 
       {editing ? (
-        <div className="l2-modal-backdrop" onClick={() => setEditing(null)}>
+        <div
+          className="l2-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Editar label"
+          onClick={() => setEditing(null)}
+        >
           <div
             className="l2-modal"
             onClick={(event) => event.stopPropagation()}
@@ -731,7 +746,13 @@ export default function L2Panel({
       ) : null}
 
       {drillDown ? (
-        <div className="l2-modal-backdrop" onClick={() => setDrillDown(null)}>
+        <div
+          className="l2-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Drill-down L0"
+          onClick={() => setDrillDown(null)}
+        >
           <div
             className="l2-modal l2-modal-wide"
             onClick={(event) => event.stopPropagation()}

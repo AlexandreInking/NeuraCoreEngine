@@ -28,6 +28,7 @@ export default [
         XMLSerializer: 'readonly',
         Image: 'readonly',
         TextDecoder: 'readonly',
+        getComputedStyle: 'readonly',
       },
     },
     plugins: { '@typescript-eslint': typescriptEslint },

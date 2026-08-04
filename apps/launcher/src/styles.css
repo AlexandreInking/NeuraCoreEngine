@@ -25,6 +25,23 @@
   --amber: #f59e0b;
   --green: #10b981;
   --shadow: rgba(0, 0, 0, 0.28);
+  /* Shared design tokens used by the L1/L2/L3 panels and memory pages */
+  --accent: #70a1ff;
+  --danger: #f87171;
+  --surface-2: rgba(17, 28, 52, 0.9);
+  --surface-solid: #0d1426;
+  --text-dim: #93a3c4;
+  --text-faint: #5b6a8c;
+  --font-mono:
+    'JetBrains Mono', 'Cascadia Code', ui-monospace, SFMono-Regular, Consolas,
+    'Liberation Mono', monospace;
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 22px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
 }
 
 :root[data-theme='light'] {
@@ -42,6 +59,12 @@
   --text-subtle: #7d89a3;
   --indigo: #1e3a8a;
   --shadow: rgba(30, 58, 138, 0.1);
+  --accent: #1e3a8a;
+  --danger: #dc2626;
+  --surface-2: rgba(255, 255, 255, 0.7);
+  --surface-solid: #ffffff;
+  --text-dim: #5a6a87;
+  --text-faint: #8a97b1;
 }
 
 * {
@@ -4260,15 +4283,11 @@ a:focus-visible {
 
 /* ── L1 Atomic Facts Index ─────────────────────────────────────────── */
 
-.l1-panel {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  padding: var(--space-lg);
-  margin-bottom: var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
+.l1-panel,
+.l2-panel {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0 22px;
 }
 
 .l1-error {
@@ -4286,17 +4305,19 @@ a:focus-visible {
 .l1-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
+  gap: 14px;
 }
 
-.l1-section {
+.l1-section,
+.l2-section {
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-  padding: var(--space-md);
+  border-radius: 13px;
+  background: var(--surface);
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  min-width: 0;
 }
 
 .l1-actions {
@@ -5003,4 +5024,37 @@ a:focus-visible {
   .l3-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Focus states + polish for L1/L2/L3 controls ───────────────────── */
+
+.l1-panel input:focus-visible,
+.l1-panel select:focus-visible,
+.l1-panel textarea:focus-visible,
+.l2-modal input:focus-visible,
+.l2-modal select:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px rgba(112, 161, 255, 0.18);
+}
+
+.l1-panel .l2-node {
+  transition: opacity 150ms ease;
+  cursor: pointer;
+}
+
+.l1-panel .l2-node:hover {
+  opacity: 0.85;
+}
+
+.l1-panel pre {
+  scrollbar-width: thin;
+}
+
+.l2-canvas-wrap {
+  overflow-x: auto;
+}
+
+.l2-canvas {
+  min-width: 720px;
 }
