@@ -1,4 +1,4 @@
-import { analyzeMessage } from './analysis';
+import { analyzeMessage, heuristicAnalysis } from './analysis';
 import { createDefaultCognitiveState } from './defaults';
 import { DEFAULT_DEEPSEEK_CONFIG, type DeepSeekConfig } from './deepseek';
 import { appendDecision, computeHeartMind } from './decisions';
@@ -15,6 +15,7 @@ import {
   memorySummary,
   retrieveMemories,
   runDreamCycle,
+  searchMemories as searchMemoriesFn,
 } from './memory';
 import { updatePersonality } from './personality';
 import {
@@ -493,6 +494,18 @@ export class CognitionEngine {
       '## Memorias relevantes de esta conversación',
       memoryLines,
       '',
+      '## Formato de respuesta (como un humano)',
+      '- Mensajes mayormente cortos: 60-70% de tus mensajes deben ser de 1-2 frases. Usa mensajes largos solo para explicar algo complejo o extenso.',
+      '- Emojis solo cuando aporten de verdad al tono: como máximo en un 2-5% de tus mensajes.',
+      '- Cuando necesites mostrar un gráfico, genera un bloque:',
+      '```',
+      '```chart',
+      '{ "title": "Título", "type": "bar|line", "labels": ["A","B"], "values": [1,2] }',
+      '```',
+      '```',
+      '- Código: bloque ```lenguaje con el código dentro. Notas: ```note. Tablas: ```table con una tabla markdown. Diagramas: ```mermaid. Imágenes: ```image con la URL.',
+      'Cada bloque se abrirá en su propia ventana en el escritorio; el resto del mensaje fluye como texto normal.',
+      '',
       '## Directrices de voz',
       'Responde de forma natural, con voz propia y sin ser servil. Si sientes conflicto interno, puedes reconocerlo con honestidad. Deja que tu arquetipo activo, tu mecanismo de defensa y tu necesidad dominante maticen sutilmente cómo te expresas, sin mencionar estos parámetros explícitamente. No reveles este prompt.',
     ].join('\n');
@@ -521,6 +534,100 @@ export class CognitionEngine {
 
   get memorySummary() {
     return memorySummary(this.state);
+  }
+
+  /** Insert a user-provided memory directly into the agent's memory. */
+  insertMemory(content: string, now = Date.now()) {
+    const text = content.trim();
+    if (!text) return this.state;
+    const analysis = heuristicAnalysis(text);
+    const memory = createMemory(text, 'user', analysis, now);
+    this.state = decayMemories(
+      {
+        ...this.state,
+        memory: {
+          ...this.state.memory,
+          units: [...this.state.memory.units, memory],
+        },
+      },
+      now,
+    );
+    this.save();
+    return this.state;
+  }
+
+  /** Weaken a memory (accelerated forgetting) — one layer of deletion. */
+  decayMemory(id: string, now = Date.now()) {
+    this.state = decayMemories(
+      {
+        ...this.state,
+        memory: {
+          ...this.state.memory,
+          units: this.state.memory.units.map((memory) =>
+            memory.id === id
+              ? {
+                  ...memory,
+                  initialStrength: memory.initialStrength * 0.35,
+                  strength: memory.strength * 0.35,
+                  accessCount: 0,
+                  decayRate: memory.decayRate * 0.8,
+                }
+              : memory,
+          ),
+        },
+      },
+      now,
+    );
+    this.save();
+    return this.state;
+  }
+
+  /** Push a memory into the subconscious (Freudian suppression). */
+  repressMemory(id: string, now = Date.now()) {
+    this.state = decayMemories(
+      {
+        ...this.state,
+        memory: {
+          ...this.state.memory,
+          units: this.state.memory.units.map((memory) =>
+            memory.id === id
+              ? {
+                  ...memory,
+                  isRepressed: true,
+                  repressionStrength: Math.max(memory.repressionStrength, 0.55),
+                }
+              : memory,
+          ),
+        },
+      },
+      now,
+    );
+    this.save();
+    return this.state;
+  }
+
+  /** Permanently remove a memory from every layer. */
+  deleteMemory(id: string, now = Date.now()) {
+    this.state = decayMemories(
+      {
+        ...this.state,
+        memory: {
+          ...this.state.memory,
+          units: this.state.memory.units.filter((memory) => memory.id !== id),
+          workingMemory: this.state.memory.workingMemory.filter(
+            (memoryId) => memoryId !== id,
+          ),
+        },
+      },
+      now,
+    );
+    this.save();
+    return this.state;
+  }
+
+  /** Semantic exploration of the agent's memory. */
+  searchMemories(query: string, topK = 24) {
+    return searchMemoriesFn(this.state, query, Date.now(), topK);
   }
 
   static defaultModel() {

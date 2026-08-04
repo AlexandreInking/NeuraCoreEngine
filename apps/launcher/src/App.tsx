@@ -1535,6 +1535,40 @@ function LauncherShell() {
     );
   };
 
+  const handleInsertMemory = (text: string) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.insertMemory(text);
+    setCognitionState({ ...engine.state });
+  };
+
+  const handleDecayMemory = (id: string) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.decayMemory(id);
+    setCognitionState({ ...engine.state });
+  };
+
+  const handleRepressMemory = (id: string) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.repressMemory(id);
+    setCognitionState({ ...engine.state });
+  };
+
+  const handleDeleteMemory = (id: string) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.deleteMemory(id);
+    setCognitionState({ ...engine.state });
+  };
+
+  const handleSearchMemories = (query: string) => {
+    const engine = engineRef.current;
+    if (!engine) return [];
+    return engine.searchMemories(query);
+  };
+
   const saveDeepSeek = (nextConfig: DeepSeekConfig) => {
     const normalized = {
       apiKey: nextConfig.apiKey.trim(),
@@ -1783,6 +1817,11 @@ function LauncherShell() {
                   cognition={cognitionState}
                   onRunDream={runDreamCycle}
                   dreamStatus={dreamStatus}
+                  onInsertMemory={handleInsertMemory}
+                  onDecayMemory={handleDecayMemory}
+                  onRepressMemory={handleRepressMemory}
+                  onDeleteMemory={handleDeleteMemory}
+                  onSearch={handleSearchMemories}
                 />
               }
             />

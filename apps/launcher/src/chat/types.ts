@@ -5,6 +5,8 @@ export type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  /** Whether the typewriter reveal has finished (assistant messages only). */
+  revealed?: boolean;
 };
 
 export type Chat = {

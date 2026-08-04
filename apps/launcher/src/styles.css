@@ -3149,10 +3149,18 @@ a:focus-visible {
   position: relative;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  background: var(--bg);
+}
+
+.canvas-world {
+  position: relative;
+  flex: 0 0 auto;
   background:
     linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px), var(--bg);
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 34px 34px;
 }
 
@@ -3649,4 +3657,278 @@ a:focus-visible {
     width: 210px;
     box-shadow: 18px 0 40px var(--shadow);
   }
+}
+
+/* Typewriter caret for streamed messages */
+
+.typewriter-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  border-radius: 1px;
+  background: var(--amber);
+  animation: caret-blink 0.9s steps(2, start) infinite;
+}
+
+@keyframes caret-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* ── Memory graph, search and layered editing ────────────────────── */
+
+.memory-card-graph {
+  grid-column: 1 / -1;
+}
+
+.memory-graph {
+  display: flex;
+  min-height: 320px;
+  flex-direction: column;
+  margin-top: 18px;
+}
+
+.memory-graph-svg {
+  width: 100%;
+  min-height: 300px;
+  overflow: visible;
+  cursor: default;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised-strong);
+}
+
+.memory-graph-edge {
+  stroke: var(--text-subtle);
+  stroke-width: 1;
+}
+
+.memory-graph-node {
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.memory-graph-node:hover {
+  opacity: 0.8;
+}
+
+.memory-graph-node.selected circle {
+  stroke-width: 3;
+}
+
+.memory-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.graph-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.64rem;
+}
+
+.graph-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.memory-graph-detail {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(112, 161, 255, 0.24);
+  border-radius: 10px;
+  background: rgba(112, 161, 255, 0.06);
+}
+
+.memory-graph-detail strong {
+  color: var(--indigo);
+  font-size: 0.72rem;
+}
+
+.memory-graph-detail p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.memory-graph-detail span {
+  color: var(--text-subtle);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.58rem;
+}
+
+.memory-graph-empty {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--text-subtle);
+  text-align: center;
+}
+
+.memory-graph-empty strong {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.memory-graph-empty span {
+  font-size: 0.72rem;
+}
+
+.memory-search {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.memory-search-input {
+  width: 100%;
+  padding: 10px 13px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  outline: 0;
+  background: var(--bg-raised-strong);
+}
+
+.memory-search-input:focus {
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px rgba(112, 161, 255, 0.12);
+}
+
+.memory-search-results {
+  display: grid;
+  max-height: 300px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.memory-search-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-raised-strong);
+}
+
+.memory-search-item-main {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.memory-search-item-main p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.memory-search-item-main small {
+  color: var(--text-subtle);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.56rem;
+}
+
+.memory-search-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.memory-emotion-dot {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 0%, transparent);
+}
+
+.memory-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.memory-action {
+  padding: 3px 8px;
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+}
+
+.memory-action:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--bg);
+}
+
+.memory-action-danger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.memory-action-danger:hover {
+  color: #fff;
+  border-color: rgba(220, 38, 38, 0.5);
+  background: rgba(220, 38, 38, 0.7);
+}
+
+.memory-insert {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.memory-insert textarea {
+  width: 100%;
+  padding: 10px 13px;
+  resize: vertical;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  outline: 0;
+  background: var(--bg-raised-strong);
+}
+
+.memory-insert textarea:focus {
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px rgba(112, 161, 255, 0.12);
+}
+
+.memory-insert .button-primary {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0 13px;
+  font-size: 0.68rem;
 }

@@ -11,9 +11,12 @@ import {
   type ArtifactWindow,
   type ChatWindowState,
 } from './artifacts';
-import type { Chat } from './types';
+import type { Chat, ChatMessage } from './types';
 
 const COGNITION_WINDOW_KEY = 'neuracore-cognition-window';
+
+/** The chat desktop is a finite canvas the user can pan across. */
+const WORLD_SIZE = { width: 2400, height: 1600 };
 
 type CognitionWindowState = ChatWindowState & { open: boolean };
 
@@ -87,6 +90,48 @@ function MessageText({
   );
 }
 
+// Human-like typewriter reveal: ≈ 256 words/min (≈ 2 chars per 90ms tick).
+const TYPEWRITER_CHARS_PER_TICK = 2;
+const TYPEWRITER_TICK_MS = 90;
+
+function StreamedMessage({
+  message,
+  onRevealed,
+}: {
+  message: ChatMessage;
+  onRevealed: () => void;
+}) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (message.revealed) {
+      setCount(message.content.length);
+      return;
+    }
+    setCount(0);
+    const interval = window.setInterval(() => {
+      setCount((current) => {
+        const next = current + TYPEWRITER_CHARS_PER_TICK;
+        if (next >= message.content.length) {
+          window.clearInterval(interval);
+          onRevealed();
+          return message.content.length;
+        }
+        return next;
+      });
+    }, TYPEWRITER_TICK_MS);
+    return () => window.clearInterval(interval);
+  }, [message.id, message.content]);
+
+  const done = count >= message.content.length;
+  return (
+    <>
+      {message.content.slice(0, count)}
+      {!done ? <span className="typewriter-caret" aria-hidden="true" /> : null}
+    </>
+  );
+}
+
 export default function ChatsPage({
   chats,
   activeChatId,
@@ -112,12 +157,19 @@ export default function ChatsPage({
   const [cognitionWindow, setCognitionWindow] = useState<CognitionWindowState>(
     () =>
       readCognitionWindowState(
-        typeof window !== 'undefined' ? window.innerWidth : 900,
+        typeof window !== 'undefined' ? window.innerWidth : WORLD_SIZE.width,
       ),
   );
   const [topZ, setTopZ] = useState(100);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [desktopSize, setDesktopSize] = useState({ width: 900, height: 560 });
+  const panRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
+  const desktopSize = WORLD_SIZE;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sending = activeChat?.messages.some(
@@ -127,18 +179,43 @@ export default function ChatsPage({
     ? EMOTION_COLORS[cognition.emotions.dominantEmotion]
     : '#70a1ff';
 
+  // Pan the canvas by dragging with the middle mouse button.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const update = () =>
-      setDesktopSize({
-        width: canvas.clientWidth,
-        height: canvas.clientHeight,
-      });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(canvas);
-    return () => observer.disconnect();
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      panRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        scrollLeft: canvas.scrollLeft,
+        scrollTop: canvas.scrollTop,
+      };
+      canvas.setPointerCapture(event.pointerId);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      const pan = panRef.current;
+      if (!pan || pan.pointerId !== event.pointerId) return;
+      canvas.scrollLeft = pan.scrollLeft - (event.clientX - pan.startX);
+      canvas.scrollTop = pan.scrollTop - (event.clientY - pan.startY);
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (panRef.current?.pointerId === event.pointerId) panRef.current = null;
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+    };
   }, []);
 
   useEffect(() => {
@@ -208,6 +285,16 @@ export default function ChatsPage({
     onUpdateChat({
       ...activeChat,
       artifacts: activeChat.artifacts.filter((artifact) => artifact.id !== id),
+    });
+  };
+
+  const markMessageRevealed = (messageId: string) => {
+    if (!activeChat) return;
+    onUpdateChat({
+      ...activeChat,
+      messages: activeChat.messages.map((message) =>
+        message.id === messageId ? { ...message, revealed: true } : message,
+      ),
     });
   };
 
@@ -330,14 +417,6 @@ export default function ChatsPage({
         ) : null}
 
         <div className="chat-canvas" ref={canvasRef}>
-          <div
-            className="desktop-glow"
-            aria-hidden="true"
-            style={{
-              background: `radial-gradient(circle at 30% 20%, ${accent}2e, transparent 55%)`,
-            }}
-          />
-
           {!activeChat ? (
             <div className="desktop-empty">
               <span className="desktop-empty-icon">💬</span>
@@ -355,168 +434,190 @@ export default function ChatsPage({
               </button>
             </div>
           ) : (
-            <>
-              {!activeChat.windowState.minimized ? (
-                <WindowFrame
-                  title={activeChat.title || 'New chat'}
-                  kind="chat"
-                  x={activeChat.windowState.x}
-                  y={activeChat.windowState.y}
-                  w={activeChat.windowState.w}
-                  h={activeChat.windowState.h}
-                  z={activeChat.windowState.z}
-                  minimized={false}
-                  focused={topZ === activeChat.windowState.z}
-                  accent={accent}
-                  bounds={desktopSize}
-                  onFocus={() => updateChatWindow({ z: bumpZ() })}
-                  onMove={(x, y) => updateChatWindow({ x, y })}
-                  onResize={(w, h) => updateChatWindow({ w, h })}
-                  onMinimize={() => updateChatWindow({ minimized: true })}
-                >
-                  <div className="chat-window-body">
-                    <div className="chat-window-header">
-                      <div>
-                        <span className="section-kicker">CONVERSATION</span>
-                        <h3>{activeChat.title || 'New chat'}</h3>
-                      </div>
-                      <span className={`chat-status ${sending ? '' : 'ready'}`}>
-                        {sending
-                          ? 'thinking…'
-                          : deepSeekConfigured
-                            ? 'online'
-                            : 'local'}
-                      </span>
-                    </div>
-                    <div className="chat-messages">
-                      {activeChat.messages.length === 0 && !sending ? (
-                        <div className="chat-empty">
-                          <strong>Empieza la conversación</strong>
-                          <span>
-                            El agente responde con su personalidad, emociones y
-                            memorias. Puede generar gráficos y código en
-                            ventanas separadas.
-                          </span>
-                        </div>
-                      ) : null}
-                      {activeChat.messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`chat-message ${message.role}`}
-                        >
-                          <span className="chat-message-role">
-                            {message.role === 'user' ? 'TÚ' : 'NEURA'}
-                          </span>
-                          <p>
-                            {message.content === '…' ? (
-                              <span className="ai-generating">
-                                Sintetizando respuesta…
-                              </span>
-                            ) : (
-                              <MessageText
-                                text={message.content}
-                                artifacts={activeChat.artifacts}
-                                onFocusArtifact={focusArtifact}
-                              />
-                            )}
-                          </p>
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </div>
-                    <form className="chat-composer" onSubmit={submit}>
-                      <textarea
-                        value={draft}
-                        onChange={(event) => setDraft(event.target.value)}
-                        placeholder="Escribe un mensaje… (usa ```chart / ```code para que Neura abra ventanas)"
-                        rows={3}
-                      />
-                      <div className="composer-footer">
-                        <span>Enter para enviar</span>
-                        <button
-                          className="button-primary"
-                          type="submit"
-                          disabled={!draft.trim() || sending}
-                        >
-                          Send
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </WindowFrame>
-              ) : null}
-
-              {cognitionWindow.open && !cognitionWindow.minimized ? (
-                <WindowFrame
-                  title="Cognitive"
-                  kind="cognition"
-                  x={cognitionWindow.x}
-                  y={cognitionWindow.y}
-                  w={cognitionWindow.w}
-                  h={cognitionWindow.h}
-                  z={cognitionWindow.z}
-                  minimized={false}
-                  focused={topZ === cognitionWindow.z}
-                  accent="#a78bfa"
-                  bounds={desktopSize}
-                  onFocus={() =>
-                    setCognitionWindow((current) => ({
-                      ...current,
-                      z: bumpZ(),
-                    }))
-                  }
-                  onMove={(x, y) =>
-                    setCognitionWindow((current) => ({ ...current, x, y }))
-                  }
-                  onResize={(w, h) =>
-                    setCognitionWindow((current) => ({ ...current, w, h }))
-                  }
-                  onMinimize={() =>
-                    setCognitionWindow((current) => ({
-                      ...current,
-                      minimized: true,
-                    }))
-                  }
-                  onClose={() =>
-                    setCognitionWindow((current) => ({
-                      ...current,
-                      open: false,
-                    }))
-                  }
-                >
-                  <div className="window-cognition">
-                    <CognitivePanel cognition={cognition} />
-                  </div>
-                </WindowFrame>
-              ) : null}
-
-              {activeChat.artifacts.map((artifact) =>
-                artifact.minimized ? null : (
+            <div
+              className="canvas-world"
+              style={{ width: WORLD_SIZE.width, height: WORLD_SIZE.height }}
+            >
+              <div
+                className="desktop-glow"
+                aria-hidden="true"
+                style={{
+                  background: `radial-gradient(circle at 30% 20%, ${accent}2e, transparent 55%)`,
+                }}
+              />
+              <>
+                {!activeChat.windowState.minimized ? (
                   <WindowFrame
-                    key={artifact.id}
-                    title={artifact.title}
-                    kind={artifact.kind}
-                    x={artifact.x}
-                    y={artifact.y}
-                    w={artifact.w}
-                    h={artifact.h}
-                    z={artifact.z}
+                    title={activeChat.title || 'New chat'}
+                    kind="chat"
+                    x={activeChat.windowState.x}
+                    y={activeChat.windowState.y}
+                    w={activeChat.windowState.w}
+                    h={activeChat.windowState.h}
+                    z={activeChat.windowState.z}
                     minimized={false}
-                    focused={topZ === artifact.z}
+                    focused={topZ === activeChat.windowState.z}
+                    accent={accent}
                     bounds={desktopSize}
-                    onFocus={() => focusArtifact(artifact.id)}
-                    onMove={(x, y) => updateArtifact(artifact.id, { x, y })}
-                    onResize={(w, h) => updateArtifact(artifact.id, { w, h })}
-                    onMinimize={() =>
-                      updateArtifact(artifact.id, { minimized: true })
-                    }
-                    onClose={() => closeArtifact(artifact.id)}
+                    onFocus={() => updateChatWindow({ z: bumpZ() })}
+                    onMove={(x, y) => updateChatWindow({ x, y })}
+                    onResize={(w, h) => updateChatWindow({ w, h })}
+                    onMinimize={() => updateChatWindow({ minimized: true })}
                   >
-                    <ArtifactContent artifact={artifact} />
+                    <div className="chat-window-body">
+                      <div className="chat-window-header">
+                        <div>
+                          <span className="section-kicker">CONVERSATION</span>
+                          <h3>{activeChat.title || 'New chat'}</h3>
+                        </div>
+                        <span
+                          className={`chat-status ${sending ? '' : 'ready'}`}
+                        >
+                          {sending
+                            ? 'thinking…'
+                            : deepSeekConfigured
+                              ? 'online'
+                              : 'local'}
+                        </span>
+                      </div>
+                      <div className="chat-messages">
+                        {activeChat.messages.length === 0 && !sending ? (
+                          <div className="chat-empty">
+                            <strong>Empieza la conversación</strong>
+                            <span>
+                              El agente responde con su personalidad, emociones
+                              y memorias. Puede generar gráficos y código en
+                              ventanas separadas.
+                            </span>
+                          </div>
+                        ) : null}
+                        {activeChat.messages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={`chat-message ${message.role}`}
+                          >
+                            <span className="chat-message-role">
+                              {message.role === 'user' ? 'TÚ' : 'NEURA'}
+                            </span>
+                            <p>
+                              {message.content === '…' ? (
+                                <span className="ai-generating">
+                                  Sintetizando respuesta…
+                                </span>
+                              ) : message.role === 'assistant' &&
+                                message.revealed !== true ? (
+                                <StreamedMessage
+                                  message={message}
+                                  onRevealed={() =>
+                                    markMessageRevealed(message.id)
+                                  }
+                                />
+                              ) : (
+                                <MessageText
+                                  text={message.content}
+                                  artifacts={activeChat.artifacts}
+                                  onFocusArtifact={focusArtifact}
+                                />
+                              )}
+                            </p>
+                          </div>
+                        ))}
+                        <div ref={messagesEndRef} />
+                      </div>
+                      <form className="chat-composer" onSubmit={submit}>
+                        <textarea
+                          value={draft}
+                          onChange={(event) => setDraft(event.target.value)}
+                          placeholder="Escribe un mensaje… (usa ```chart / ```code para que Neura abra ventanas)"
+                          rows={3}
+                        />
+                        <div className="composer-footer">
+                          <span>Enter para enviar</span>
+                          <button
+                            className="button-primary"
+                            type="submit"
+                            disabled={!draft.trim() || sending}
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </WindowFrame>
-                ),
-              )}
-            </>
+                ) : null}
+
+                {cognitionWindow.open && !cognitionWindow.minimized ? (
+                  <WindowFrame
+                    title="Cognitive"
+                    kind="cognition"
+                    x={cognitionWindow.x}
+                    y={cognitionWindow.y}
+                    w={cognitionWindow.w}
+                    h={cognitionWindow.h}
+                    z={cognitionWindow.z}
+                    minimized={false}
+                    focused={topZ === cognitionWindow.z}
+                    accent="#a78bfa"
+                    bounds={desktopSize}
+                    onFocus={() =>
+                      setCognitionWindow((current) => ({
+                        ...current,
+                        z: bumpZ(),
+                      }))
+                    }
+                    onMove={(x, y) =>
+                      setCognitionWindow((current) => ({ ...current, x, y }))
+                    }
+                    onResize={(w, h) =>
+                      setCognitionWindow((current) => ({ ...current, w, h }))
+                    }
+                    onMinimize={() =>
+                      setCognitionWindow((current) => ({
+                        ...current,
+                        minimized: true,
+                      }))
+                    }
+                    onClose={() =>
+                      setCognitionWindow((current) => ({
+                        ...current,
+                        open: false,
+                      }))
+                    }
+                  >
+                    <div className="window-cognition">
+                      <CognitivePanel cognition={cognition} />
+                    </div>
+                  </WindowFrame>
+                ) : null}
+
+                {activeChat.artifacts.map((artifact) =>
+                  artifact.minimized ? null : (
+                    <WindowFrame
+                      key={artifact.id}
+                      title={artifact.title}
+                      kind={artifact.kind}
+                      x={artifact.x}
+                      y={artifact.y}
+                      w={artifact.w}
+                      h={artifact.h}
+                      z={artifact.z}
+                      minimized={false}
+                      focused={topZ === artifact.z}
+                      bounds={desktopSize}
+                      onFocus={() => focusArtifact(artifact.id)}
+                      onMove={(x, y) => updateArtifact(artifact.id, { x, y })}
+                      onResize={(w, h) => updateArtifact(artifact.id, { w, h })}
+                      onMinimize={() =>
+                        updateArtifact(artifact.id, { minimized: true })
+                      }
+                      onClose={() => closeArtifact(artifact.id)}
+                    >
+                      <ArtifactContent artifact={artifact} />
+                    </WindowFrame>
+                  ),
+                )}
+              </>
+            </div>
           )}
 
           {minimizedWindows.length ? (

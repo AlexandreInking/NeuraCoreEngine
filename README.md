@@ -25,6 +25,12 @@ Todo el estado persiste en `localStorage` del launcher (clave por agente). El mo
 
 La pestaña Chats es un escritorio donde la conversación, el panel cognitivo y los artefactos del agente viven en ventanas independientes movibles, redimensionables, minimizables y cerrables. Cuando el modelo responde con bloques ```` ```chart ````, ```` ```code ````, ```` ```note ````, ```` ```table ```` o ```` ```mermaid ````, cada bloque se abre en su propia ventana (gráficos SVG, código con botón de copiado, notas, tablas y diagramas); el mensaje conserva un chip que enfoca la ventana. Las posiciones persisten por conversación en `localStorage`.
 
+El canvas es un mundo finito desplazable: las ventanas pueden colocarse fuera de la vista y se recorre con la rueda o arrastrando con el botón central del ratón. Los mensajes del agente se revelan con efecto máquina de escribir (~256 PPM) y el System Prompt le pide mensajes mayormente cortos con emojis solo cuando aportan (2-5%).
+
+## Memoria visual y editable
+
+La página Memory muestra el **grafo de conexiones** de los recuerdos: el tamaño de cada nodo representa su importancia/fuerza y el color su emoción asociada (rueda de Plutchik), con aristas por temas compartidos. Incluye **búsqueda semántica** local (similitud de keywords + fuerza Ebbinghaus), **inserción** de memorias nuevas y **edición por capas**: *Decay* (olvido acelerado), *Repress* (mover al subconsciente) o *Delete* (eliminar de todas las capas, con confirmación).
+
 ## Actualizaciones firmadas
 
 El launcher consulta GitHub Releases en producción y solo acepta artefactos cuya firma coincida con la clave pública incluida en `apps/launcher/src-tauri/tauri.conf.json`. El botón de actualización descarga e instala el bundle firmado; una firma inválida se rechaza.

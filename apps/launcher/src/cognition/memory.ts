@@ -1,7 +1,8 @@
-import { clamp01 } from './defaults';
+import { clamp01, dominantEmotionOf, mapVadToPlutchik } from './defaults';
 import type {
   CognitiveState,
   DreamLog,
+  EmotionLabel,
   MemoryUnit,
   MessageAnalysis,
 } from './types';
@@ -265,4 +266,48 @@ export function memorySummary(state: CognitiveState) {
 
 function createId(prefix: string) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
+}
+
+/** Dominant emotion label for a memory, derived from its VAD markers. */
+export function emotionOfMemory(memory: MemoryUnit): EmotionLabel {
+  return dominantEmotionOf(mapVadToPlutchik(memory.valence, memory.arousal, 0));
+}
+
+/** Semantic exploration: rank memories by keyword similarity + strength. */
+export function searchMemories(
+  state: CognitiveState,
+  query: string,
+  now: number,
+  topK = 24,
+): RetrievedMemory[] {
+  const tokens = query
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((token) => token.length >= 3);
+  if (!tokens.length) {
+    return state.memory.units
+      .map((memory) => ({
+        ...memory,
+        strength: currentStrength(memory, now),
+        score: currentStrength(memory, now),
+        subconsciousInfluence: memory.isRepressed,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
+  }
+  return state.memory.units
+    .map((memory) => {
+      const strength = currentStrength(memory, now);
+      const semantic = similarity(memory, tokens);
+      const importanceBoost = 1 + memory.importance * 0.8;
+      return {
+        ...memory,
+        strength,
+        score: strength * (semantic * 3 + 0.02) * importanceBoost,
+        subconsciousInfluence: memory.isRepressed,
+      };
+    })
+    .filter((memory) => memory.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
 }

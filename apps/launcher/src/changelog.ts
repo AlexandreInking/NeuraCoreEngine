@@ -24,6 +24,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Chat como escritorio de ventanas: conversación, panel cognitivo y artefactos (gráficos, código, notas, tablas, diagramas) movibles, redimensionables y minimizables.',
       'Artefactos del agente: bloques ```chart / ```code / ```note / ```table / ```mermaid se abren en ventanas separadas con chips enlazados en el mensaje.',
       'Corrección de layout: la barra lateral ya no se corta y el contenido principal evita el desbordamiento horizontal.',
+      'Canvas de chat desplazable: las ventanas pueden colocarse fuera de la vista y el escritorio se mueve con scroll o arrastre con botón central.',
+      'Mensajes humanizados: revelado con máquina de escribir (~256 PPM) y guía al modelo para mensajes mayormente cortos con emojis solo en el 2-5%.',
+      'Memoria: grafo de conexiones (tamaño = importancia, color = emoción), búsqueda semántica local, inserción de memorias y edición por capas (debilitar, reprimir, eliminar).',
     ],
   },
 ];

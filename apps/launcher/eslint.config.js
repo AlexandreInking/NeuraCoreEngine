@@ -19,6 +19,7 @@ export default [
         ResizeObserver: 'readonly',
         navigator: 'readonly',
         setTimeout: 'readonly',
+        PointerEvent: 'readonly',
       },
     },
     plugins: { '@typescript-eslint': typescriptEslint },
