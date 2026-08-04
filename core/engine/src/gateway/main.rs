@@ -1,26 +1,28 @@
-//! Neura-Core v2 output gateway (hito 8.3-8.5).
+//! Neura-Core v2 output gateway (hito 8.3-8.5 + 9.1).
 //!
 //! Bridges the TS cognitive motor to external clients:
 //!   - gRPC (Tonic)   : EmitTurn (unary) + StreamAffect (server-streaming)
 //!   - REST (Axum)    : POST /v2/turn, GET /v2/affect (SSE), GET /v2/ws (WebSocket)
-//!   - Auth           : X-Tenant-Id + X-Api-Key headers (401 otherwise)
-//!
-//! The cognitive motor runs in the launcher (TS); this gateway accepts
-//! already-built NeuraCoreOutputPayloads, validates the JSON, and streams
-//! demo VAD frames until hito 0.9 wires the real motor.
+//!   - Auth (hito 9.1): POST /auth/token (X-Api-Key → JWT HS256) + middleware
+//!                      Bearer JWT o headers X-Tenant-Id/X-Api-Key (401)
+//!   - Admin          : GET/POST /admin/tenants, DELETE /admin/tenants/:id (revocación),
+//!                      GET /admin/logs (intentos de auth fallidos)
+
+pub mod auth;
+pub mod store;
 
 pub mod pb {
     tonic::include_proto!("neuracore.v2");
 }
 
 use axum::{
-    extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade},
+    extract::{ws::{Message as WsMessage, WebSocket, WebSocketUpgrade}, Path},
     http::HeaderMap,
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse, Response,
     },
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use chrono::Utc;
@@ -28,46 +30,69 @@ use futures::Stream;
 use pb::neura_core_v2_server::{NeuraCoreV2, NeuraCoreV2Server};
 use pb::{AffectFrame, StreamAffectRequest, TurnRequest, TurnResponse};
 use rand::Rng;
-use std::{convert::Infallible, net::SocketAddr, pin::Pin, time::Duration};
+use serde::{Deserialize, Serialize};
+use std::{convert::Infallible, net::SocketAddr, pin::Pin, sync::Mutex, time::Duration};
 use tonic::{transport::Server, Request, Response as TonicResponse, Status};
 
-const API_KEY: &str = "dev-key"; // replaced by per-tenant JWT in hito 0.9
-const TENANT: &str = "default";
+// ── shared state ─────────────────────────────────────────────────────
 
-// ── auth ─────────────────────────────────────────────────────────────
+static AUTH_FAILURES: Mutex<Vec<AuthFailure>> = Mutex::new(Vec::new());
 
-fn tenant_key_ok(tenant: &str, key: &str) -> bool {
-    tenant == TENANT && key == API_KEY
+#[derive(Clone, Serialize)]
+struct AuthFailure {
+    at: String,
+    source: String,
+    reason: String,
 }
 
-fn require_auth<T>(request: &Request<T>) -> Result<(), Status> {
-    let tenant = request
-        .metadata()
-        .get("x-tenant-id")
-        .map(|v| v.to_str().unwrap_or(""))
-        .unwrap_or("");
-    let key = request
-        .metadata()
-        .get("x-api-key")
-        .map(|v| v.to_str().unwrap_or(""))
-        .unwrap_or("");
-    if tenant_key_ok(tenant, key) {
-        Ok(())
-    } else {
-        Err(Status::unauthenticated("X-Tenant-Id / X-Api-Key requeridos"))
+fn log_auth_failure(source: &str, reason: &str) {
+    if let Ok(mut failures) = AUTH_FAILURES.lock() {
+        failures.push(AuthFailure {
+            at: Utc::now().to_rfc3339(),
+            source: source.to_string(),
+            reason: reason.to_string(),
+        });
+        let len = failures.len();
+        if len > 200 {
+            failures.drain(0..len - 200);
+        }
     }
 }
 
-fn rest_auth_ok(headers: &HeaderMap) -> bool {
+// ── auth helpers ─────────────────────────────────────────────────────
+
+fn require_auth<T>(request: &Request<T>) -> Result<(), Status> {
+    let headers = request.metadata();
     let tenant = headers
         .get("x-tenant-id")
-        .and_then(|v| v.to_str().ok())
+        .map(|value| value.to_str().unwrap_or(""))
         .unwrap_or("");
     let key = headers
         .get("x-api-key")
-        .and_then(|v| v.to_str().ok())
+        .map(|value| value.to_str().unwrap_or(""))
         .unwrap_or("");
-    tenant_key_ok(tenant, key)
+    if tenant == "default" && key == "dev-key" {
+        return Ok(());
+    }
+    if let Some(auth) = headers.get("authorization").map(|value| value.to_str().unwrap_or("")) {
+        if let Some(token) = auth.strip_prefix("Bearer ") {
+            if auth::verify_token(token).is_some() {
+                return Ok(());
+            }
+        }
+    }
+    log_auth_failure("grpc", "auth fallida");
+    Err(Status::unauthenticated("X-Tenant-Id/X-Api-Key o Bearer JWT requeridos"))
+}
+
+fn http_authenticated(headers: &HeaderMap, source: &str) -> Result<auth::Claims, Response> {
+    match auth::authenticate(headers) {
+        Ok(claims) => Ok(claims),
+        Err(reason) => {
+            log_auth_failure(source, &reason);
+            Err((axum::http::StatusCode::UNAUTHORIZED, reason).into_response())
+        }
+    }
 }
 
 fn frame_at(phase: f32) -> AffectFrame {
@@ -164,9 +189,90 @@ impl NeuraCoreV2 for GrpcGateway {
     }
 }
 
-// ── REST handlers ────────────────────────────────────────────────────
+// ── REST: auth/token + admin ─────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
+struct TokenRequest {
+    ttl_seconds: Option<i64>,
+}
+
+async fn auth_token(headers: HeaderMap, Json(body): Json<TokenRequest>) -> Response {
+    let api_key = headers
+        .get("x-api-key")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    let store = store::TenantStore::load();
+    match store.find_by_api_key(api_key) {
+        Some(tenant) => match auth::issue_token(tenant, body.ttl_seconds.unwrap_or(3600)) {
+            Ok(token) => Json(serde_json::json!({
+                "token": token,
+                "tenantId": tenant.id,
+                "role": tenant.role,
+                "expiresInSeconds": body.ttl_seconds.unwrap_or(3600),
+            }))
+            .into_response(),
+            Err(error) => {
+                log_auth_failure("auth/token", &error);
+                (axum::http::StatusCode::INTERNAL_SERVER_ERROR, error).into_response()
+            }
+        },
+        None => {
+            log_auth_failure("auth/token", "API key inválida");
+            (axum::http::StatusCode::UNAUTHORIZED, "API key inválida").into_response()
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct CreateTenantBody {
+    id: String,
+    name: String,
+    role: Option<String>,
+    api_key: String,
+}
+
+async fn admin_list_tenants(headers: HeaderMap) -> Response {
+    if http_authenticated(&headers, "admin/tenants").is_err() {
+        return (axum::http::StatusCode::UNAUTHORIZED, "no autorizado").into_response();
+    }
+    let store = store::TenantStore::load();
+    Json(store.list()).into_response()
+}
+
+async fn admin_create_tenant(headers: HeaderMap, Json(body): Json<CreateTenantBody>) -> Response {
+    if http_authenticated(&headers, "admin/tenants").is_err() {
+        return (axum::http::StatusCode::UNAUTHORIZED, "no autorizado").into_response();
+    }
+    let mut store = store::TenantStore::load();
+    let tenant = store.create(
+        &body.id,
+        &body.name,
+        body.role.as_deref().unwrap_or("agent"),
+        &body.api_key,
+    );
+    Json(tenant).into_response()
+}
+
+async fn admin_revoke_tenant(headers: HeaderMap, Path(id): Path<String>) -> Response {
+    if http_authenticated(&headers, "admin/tenants").is_err() {
+        return (axum::http::StatusCode::UNAUTHORIZED, "no autorizado").into_response();
+    }
+    let mut store = store::TenantStore::load();
+    let removed = store.revoke(&id);
+    Json(serde_json::json!({ "revoked": removed, "id": id })).into_response()
+}
+
+async fn admin_logs(headers: HeaderMap) -> Response {
+    if http_authenticated(&headers, "admin/logs").is_err() {
+        return (axum::http::StatusCode::UNAUTHORIZED, "no autorizado").into_response();
+    }
+    let failures = AUTH_FAILURES.lock().map(|log| log.clone()).unwrap_or_default();
+    Json(failures).into_response()
+}
+
+// ── REST: v2 endpoints ───────────────────────────────────────────────
+
+#[derive(Deserialize)]
 struct TurnBody {
     agent_id: String,
     user_message: String,
@@ -174,32 +280,23 @@ struct TurnBody {
     payload_json: String,
 }
 
-async fn rest_turn(headers: HeaderMap, Json(body): Json<TurnBody>) -> impl IntoResponse {
-    if !rest_auth_ok(&headers) {
-        return (
-            axum::http::StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": "X-Tenant-Id / X-Api-Key requeridos" })),
-        );
+async fn rest_turn(headers: HeaderMap, Json(body): Json<TurnBody>) -> Response {
+    if http_authenticated(&headers, "v2/turn").is_err() {
+        return (axum::http::StatusCode::UNAUTHORIZED, "no autorizado").into_response();
     }
     let (accepted, validation) = accept_payload(&body.payload_json);
-    (
-        axum::http::StatusCode::OK,
-        Json(serde_json::json!({
-            "accepted": accepted,
-            "validation": validation,
-            "agentId": body.agent_id,
-            "userMessage": body.user_message,
-        })),
-    )
+    Json(serde_json::json!({
+        "accepted": accepted,
+        "validation": validation,
+        "agentId": body.agent_id,
+        "userMessage": body.user_message,
+    }))
+    .into_response()
 }
 
 async fn rest_affect(headers: HeaderMap) -> Response {
-    if !rest_auth_ok(&headers) {
-        return (
-            axum::http::StatusCode::UNAUTHORIZED,
-            "X-Tenant-Id / X-Api-Key requeridos".to_string(),
-        )
-            .into_response();
+    if http_authenticated(&headers, "v2/affect").is_err() {
+        return (axum::http::StatusCode::UNAUTHORIZED, "no autorizado").into_response();
     }
     let stream = async_stream::stream! {
         let mut phase = 0.0_f32;
@@ -222,8 +319,11 @@ async fn rest_affect(headers: HeaderMap) -> Response {
         .into_response()
 }
 
-async fn rest_ws(ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.on_upgrade(handle_socket)
+async fn rest_ws(headers: HeaderMap, ws: WebSocketUpgrade) -> Response {
+    if http_authenticated(&headers, "v2/ws").is_err() {
+        return (axum::http::StatusCode::UNAUTHORIZED, "no autorizado").into_response();
+    }
+    ws.on_upgrade(handle_socket).into_response()
 }
 
 async fn handle_socket(mut socket: WebSocket) {
@@ -251,6 +351,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v2/turn", post(rest_turn))
         .route("/v2/affect", get(rest_affect))
         .route("/v2/ws", get(rest_ws))
+        .route("/auth/token", post(auth_token))
+        .route("/admin/tenants", get(admin_list_tenants).post(admin_create_tenant))
+        .route("/admin/tenants/:id", delete(admin_revoke_tenant))
+        .route("/admin/logs", get(admin_logs))
         .layer(tower_http::cors::CorsLayer::permissive());
 
     let rest_addr: SocketAddr = "127.0.0.1:8443".parse()?;
@@ -269,9 +373,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     println!("Neura-Core v2 gateway");
-    println!("  REST -> http://{rest_addr}  (POST /v2/turn · GET /v2/affect SSE · GET /v2/ws)");
+    println!("  REST -> http://{rest_addr}  (/v2/turn · /v2/affect · /v2/ws · /auth/token · /admin/*)");
     println!("  gRPC -> http://{grpc_addr}  (EmitTurn · StreamAffect)");
-    println!("  Auth -> X-Tenant-Id: {TENANT} · X-Api-Key: {API_KEY}");
+    println!("  Auth -> X-Api-Key (POST /auth/token) o Bearer JWT · tenant por defecto: dev-key");
 
     tokio::try_join!(rest_handle, grpc_handle)?;
     Ok(())

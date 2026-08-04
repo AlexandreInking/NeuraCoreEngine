@@ -24,6 +24,8 @@ tower-http = { version = "0.5", features = ["cors"] }
 futures = "0.3"
 rand = "0.8"
 async-stream = "0.3"
+jsonwebtoken = "9"
+sha2 = "0.10"
 
 [build-dependencies]
 tonic-build = "0.12"
