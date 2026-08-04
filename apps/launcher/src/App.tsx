@@ -43,8 +43,11 @@ import { autoPlaceArtifact, parseArtifacts } from './chat/artifacts';
 import type { Chat, ChatMessage } from './chat/types';
 import { l0StoreFor } from './l0';
 import { DEFAULT_PROSODY } from './l0';
+import { l1StoreFor } from './l1';
+import { l2StoreFor } from './l2';
+import { l3ProfileStore, compileSystemPrompt } from './l3';
 
-const VERSION = 'v0.1.0-alpha';
+const VERSION = 'v0.5.0-alpha';
 
 type Theme = 'dark' | 'light';
 type IconName =
@@ -1453,8 +1456,37 @@ function LauncherShell() {
         processed.analysis,
         processed.memories,
       );
+
+      // L3 persona layer: prepend the compiled ≤800-token profile prompt.
+      let finalSystemPrompt = systemPrompt;
+      try {
+        const profile = l3ProfileStore().get(agentId);
+        if (profile) {
+          const l1 = l1StoreFor(agentId);
+          const facts = await l1.all();
+          const topFacts = [...facts]
+            .sort((a, b) => b.certainty - a.certainty)
+            .slice(0, 3);
+          const compiled = compileSystemPrompt({
+            profile,
+            vad: engine.state.emotions
+              ? {
+                  valence: engine.state.emotions.valence,
+                  arousal: engine.state.emotions.arousal,
+                  dominance: engine.state.emotions.dominance,
+                }
+              : null,
+            activeL2Node: l2StoreFor(agentId).active(),
+            topL1Facts: topFacts,
+          });
+          finalSystemPrompt = `${compiled.prompt}\n\n---\n\n${systemPrompt}`;
+        }
+      } catch {
+        // L3 is optional; fall back to the cognitive prompt alone.
+      }
+
       const response = await deepSeekChat(deepSeekConfig, [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: finalSystemPrompt },
         ...history,
       ]);
       engine.recordAssistantReply(response);

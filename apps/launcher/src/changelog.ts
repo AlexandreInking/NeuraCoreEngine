@@ -6,6 +6,29 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: 'v0.5.0-alpha',
+    date: '2026-08-06',
+    notes: [
+      'Hito 5.1-5.5: capa L3 de persona — `L3ProfileStore` local-first con schema espejo de PostgreSQL (agentProfiles), snapshots (últimos 5) y rollback.',
+      'Persona Designer: identidad, vertical (Gaming/HR/EdTech/Custom), VAD baseline con sliders, inercia emocional γ, reglas éticas editables y texto base con contador.',
+      'Compilador de System Prompt con budget rígido ≤ 800 tokens (gpt-tokenizer / cl100k): secciones [PERFIL BASE L3] [VAD ACTUAL + COLOR HEX] [ESCENARIO L2 ACTIVO] [TOP-3 HECHOS L1], barra verde/amarillo/roja y recorte automático de hechos de menor score.',
+      'Test con LLM real en streaming (SSE, tokens uno a uno) contra DeepSeek, con métricas de tokens, latencia y modelo, e historial de las últimas 5 pruebas.',
+      'Consolidación L3 cada 6h (forzable): regenera el texto base desde L2/L1 con el LLM (fallback heurístico), diff de campos y rollback por snapshots.',
+      'El chat integra el perfil L3 compilado como prefijo del System Prompt cognitivo cuando existe perfil para el agente.',
+    ],
+  },
+  {
+    version: 'v0.4.0-alpha',
+    date: '2026-08-06',
+    notes: [
+      'Hito 4.1-4.5: capa L2 de escenarios — `L2Store` local-first (semántica Neo4j) con nodos de escenario (ACTIVE/CLOSED/ESCALATED), hechos L1 vinculados y metadatos de tool calls.',
+      'Clustering semántico real: re-embedding de hechos L1 (certeza ≥ 75%) con all-MiniLM-L6-v2, agrupación por coseno o entidades compartidas; grupos de 3+ hechos crean nodos L2 con nombre generado por LLM (fallback heurístico).',
+      'Canvas Mermaid interactivo en SVG propio: pan/zoom, click para detalle, doble click para editar labels, export PNG y string Mermaid copiable/descargable.',
+      'Tool Call Simulator: comprime secuencias JSON de tool calls a Mermaid con ahorro de tokens visible y colores por HTTP (2xx verde, 4xx amarillo, 5xx rojo).',
+      'Drill-down L2 → L0: cada tool call puede vincular su entry L0 exacto; el modal muestra el raw y advierte si el entry expiró (TTL 24h), con "reintentar" simulado.',
+    ],
+  },
+  {
     version: 'v0.3.0-alpha',
     date: '2026-08-05',
     notes: [

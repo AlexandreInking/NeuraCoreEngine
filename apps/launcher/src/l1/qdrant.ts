@@ -101,12 +101,15 @@ export function idToUuid(id: string) {
   const mix = (h1 ^ h2) >>> 0;
   const bytes = new Uint8Array(16);
   for (let i = 0; i < 16; i += 1) {
-    const source = i < 4 ? h1 : i < 8 ? h2 : i < 12 ? mix : (mix ^ (i * 0x9e3779b9)) >>> 0;
+    const source =
+      i < 4 ? h1 : i < 8 ? h2 : i < 12 ? mix : (mix ^ (i * 0x9e3779b9)) >>> 0;
     bytes[i] = (source >>> ((i % 4) * 8)) & 0xff;
   }
   bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 

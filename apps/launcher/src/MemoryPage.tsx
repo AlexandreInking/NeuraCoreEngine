@@ -2,6 +2,8 @@ import { useMemo, useState, type FormEvent } from 'react';
 import MemoryGraph from './MemoryGraph';
 import L0Panel from './L0Panel';
 import L1Panel from './L1Panel';
+import L2Panel from './L2Panel';
+import L3Panel from './L3Panel';
 import type { DeepSeekConfig } from './cognition/deepseek';
 import type { CognitiveState, DreamLog, MemoryUnit } from './cognition/types';
 import { EMOTION_COLORS } from './cognition/types';
@@ -381,6 +383,13 @@ export default function MemoryPage({
         lastDreamAt: cognition.memory.lastDreamAt,
       }
     : null;
+  const vad = cognition
+    ? {
+        valence: cognition.emotions.valence,
+        arousal: cognition.emotions.arousal,
+        dominance: cognition.emotions.dominance,
+      }
+    : null;
 
   const handleDecay = (id: string) => onDecayMemory(id);
   const handleRepress = (id: string) => onRepressMemory(id);
@@ -403,6 +412,10 @@ export default function MemoryPage({
       <L0Panel agentId={agentId} />
 
       <L1Panel agentId={agentId} deepSeekConfig={deepSeekConfig} />
+
+      <L2Panel agentId={agentId} deepSeekConfig={deepSeekConfig} />
+
+      <L3Panel agentId={agentId} deepSeekConfig={deepSeekConfig} vad={vad} />
 
       <div className="memory-toolbar">
         <div>
