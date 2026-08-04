@@ -5058,3 +5058,239 @@ a:focus-visible {
 .l2-canvas {
   min-width: 720px;
 }
+
+/* ── VAD Engine (hito 6.x) ──────────────────────────────────────────── */
+
+.vad-canvas {
+  width: 100%;
+  height: 340px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.vad-simulator {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.vad-sim-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.vad-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.vad-slider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.vad-slider span {
+  min-width: 90px;
+}
+
+.vad-slider input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.vad-slider code {
+  font-family: var(--font-mono);
+  min-width: 2.6rem;
+  text-align: right;
+  color: var(--text);
+}
+
+.vad-sim-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: var(--space-xs);
+}
+
+.vad-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.vad-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vad-toggle-track {
+  position: relative;
+  width: 32px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.15s ease;
+  flex: 0 0 auto;
+}
+
+.vad-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.vad-toggle input:checked + .vad-toggle-track {
+  background: var(--accent);
+}
+
+.vad-toggle input:checked + .vad-toggle-track::after {
+  transform: translateX(15px);
+  background: var(--surface);
+}
+
+.vad-ekf-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border-top: 1px dashed var(--border);
+  padding-top: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.vad-spheres {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+}
+
+.vad-spheres.dual {
+  grid-template-columns: 1fr 1fr;
+}
+
+.vad-sphere-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.vad-readout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.vad-quadrant-label {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.vad-quadrant-tag {
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+.vad-readout code {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.vad-live-panel {
+  margin-top: var(--space-sm);
+}
+
+.vad-engine-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.vad-live-readout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.vad-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 6px;
+  overflow: hidden;
+}
+
+.vad-wave span {
+  flex: 1;
+  min-width: 1px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+.vad-prosody-values {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.vad-prosody-values strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.vad-motor-section {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0 22px;
+}
+
+.vad-ssml-panel textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.vad-ssml-pre {
+  max-height: 140px;
+}
+
+@media (max-width: 1040px) {
+  .vad-spheres.dual {
+    grid-template-columns: 1fr;
+  }
+}

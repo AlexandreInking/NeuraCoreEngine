@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CognitiveState } from './cognition/types';
 import {
   EKMAN_LABELS,
@@ -5,6 +6,10 @@ import {
   EMOTION_LABELS,
   type EmotionLabel,
 } from './cognition/types';
+import { VadSimulator } from './vad/VadSimulator';
+import { VadLivePanel } from './vad/VadLivePanel';
+import { SsmlPanel } from './vad/SsmlPanel';
+import type { ProsodyFeatures } from './vad/types';
 
 function formatTime(timestamp: number) {
   return new Intl.DateTimeFormat(undefined, {
@@ -94,6 +99,7 @@ function AffectEngineBody({
   onTick: () => void;
 }) {
   const emotions = state.emotions;
+  const [liveProsody, setLiveProsody] = useState<ProsodyFeatures | null>(null);
   return (
     <>
       <div className="affect-simulator">
@@ -355,6 +361,37 @@ function AffectEngineBody({
             Inercia γ={emotions.emotionalInertiaGamma} · regulación{' '}
             {Math.round(emotions.regulationEffectiveness * 100)}%
           </p>
+        </article>
+      </div>
+
+      <div className="vad-motor-section">
+        <article className="surface affect-card affect-card-wide">
+          <div className="surface-header">
+            <div>
+              <span className="section-kicker">MOTOR VAD 3D</span>
+              <h3>Simulador, EKF y micrófono</h3>
+            </div>
+            <span className="surface-badge cognitive-live">LIVE</span>
+          </div>
+          <VadSimulator liveProsody={liveProsody} />
+          <VadLivePanel onFeatures={setLiveProsody} />
+        </article>
+
+        <article className="surface affect-card affect-card-wide">
+          <div className="surface-header">
+            <div>
+              <span className="section-kicker">VOZ</span>
+              <h3>SSML desde el estado emocional</h3>
+            </div>
+            <span className="surface-badge">SYNTHESIS</span>
+          </div>
+          <SsmlPanel
+            vad={{
+              valence: state.emotions.valence,
+              arousal: state.emotions.arousal,
+              dominance: state.emotions.dominance,
+            }}
+          />
         </article>
       </div>
     </>
