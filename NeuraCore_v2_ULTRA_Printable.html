@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Neura-Core Engine v2.0-ULTRA - Technical Design Document</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --text: #0f172a;
+      --text-light: #475569;
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --code-bg: #0f172a;
+      --code-text: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background-color: var(--bg);
+      line-height: 1.6;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header-card {
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 8px 0;
+      color: var(--primary-dark);
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-light);
+      margin: 0 0 16px 0;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      background: var(--surface);
+      padding: 12px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .meta-item span {
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-top: 32px;
+      color: var(--text);
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 20px;
+    }
+
+    p, li {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    pre {
+      background-color: var(--code-bg);
+      color: var(--code-text);
+      padding: 14px;
+      border-radius: 6px;
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    code {
+      font-family: 'Fira Code', monospace;
+      background: var(--surface);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+    }
+
+    th {
+      background-color: var(--surface);
+      font-weight: 700;
+    }
+
+    .math-block {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+    }
+
+    @media print {
+      body { padding: 0; }
+      .container { max-width: 100%; }
+      pre, code { white-space: pre-wrap; word-break: break-all; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-card">
+      <h1>NEURA-CORE ENGINE v2.0-ULTRA</h1>
+      <div class="subtitle">Documento de Diseño Técnico & Arquitectura de Software de Producción (TDD / GDD)</div>
+      <div class="meta-grid">
+        <div class="meta-item"><span>Proyecto:</span> Neura-Core Afectivo</div>
+        <div class="meta-item"><span>Autor:</span> Alejandro Espinoza (InKing Studio)</div>
+        <div class="meta-item"><span>Versión:</span> 2.0.0-ULTRA</div>
+        <div class="meta-item"><span>Fecha:</span> Agosto 2026</div>
+        <div class="meta-item"><span>Estado:</span> Listo para Producción</div>
+        <div class="meta-item"><span>Dominio:</span> B2B AI Engines / Gaming</div>
+      </div>
+    </div>
+
+    <h2>1. Visión General y Filosofía de Arquitectura</h2>
+    <p>Neura-Core v2.0-ULTRA es una plataforma cognitiva desacoplada de alto rendimiento. Abstrae la captura física (mocap facial/corporal y rendering visual) para enfocar recursos en la orquestación afectiva, razonamiento simbólico y memoria jerárquica contextual de alta densidad.</p>
+
+    <h2>2. Especificaciones de Memoria Jerárquica (TencentDB Model)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nivel</th>
+          <th>Nombre</th>
+          <th>Descripción Técnica</th>
+          <th>Estrategia de Retención</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>L0</strong></td>
+          <td>Raw Conversation & Logs</td>
+          <td>Buffer circular lock-free en Redis Streams (`MAXLEN 200`). Registra audio crudo, prosodia y transcripción.</td>
+          <td>Expira a los 30 min o se condensa en L1 al cerrar sesión.</td>
+        </tr>
+        <tr>
+          <td><strong>L1</strong></td>
+          <td>Atomic Facts Index</td>
+          <td>Índice de vectores (IVF-PQ + HNSW) con metadatos de timestamp, valencia y certeza.</td>
+          <td>Vector search ponderado por decay exponencial de tiempo.</td>
+        </tr>
+        <tr>
+          <td><strong>L2</strong></td>
+          <td>Scenario & Context DAG</td>
+          <td>Grafo de contexto en AST Markdown con abstracción simbólica Mermaid.</td>
+          <td>Estructura persistente en formato relacional estructurado.</td>
+        </tr>
+        <tr>
+          <td><strong>L3</strong></td>
+          <td>Persona & Core Profile</td>
+          <td>Perfil consolidado del agente, moralidad y modelo acumulado.</td>
+          <td>Persistente, inyectado dinámicamente al System Prompt (&lt; 800 tokens).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Motor Afectivo VAD & Filtro EKF</h2>
+    <div class="math-block">
+      Ecuación Diferencial VAD:<br>
+      dE(t)/dt = -Γ (E(t) - E_baseline) + W_stimulus * S(t) + η(t)<br><br>
+      Estimación EKF:<br>
+      x̂_{k|k} = x̂_{k|k-1} + K_k (z_k - h(x̂_{k|k-1}))
+    </div>
+
+    <h2>4. Protobuf Stream Spec (`neuracore_v2.proto`)</h2>
+    <pre>
+syntax = "proto3";
+package neuracore.v2;
+
+service NeuraCoreService {
+  rpc BiDirectionalStream (stream ClientFrame) returns (stream ServerFrame);
+}
+
+message ClientFrame {
+  string tenantId = 1;
+  string agentId = 2;
+  string conversationId = 3;
+  int64 timestampMs = 4;
+  oneof payload {
+    string textContent = 5;
+    bytes pcmAudioData = 6;
+  }
+}
+
+message VadVector {
+  float valence = 1;
+  float arousal = 2;
+  float dominance = 3;
+}
+
+message ServerFrame {
+  string agentId = 1;
+  VadVector vadVector = 2;
+  string responseTextChunk = 3;
+  string animationTag = 4;
+}
+    </pre>
+
+    <h2>5. Despliegue de Infraestructura (Kubernetes)</h2>
+    <pre>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neuracore-affect-engine
+  namespace: neuracore-prod
+spec:
+  replicas: 8
+  template:
+    spec:
+      containers:
+      - name: affect-engine
+        image: registry.neuracore.io/engine/affect-service:v2.0-ULTRA
+        resources:
+          limits: { cpu: "4000m", memory: "8Gi" }
+          requests: { cpu: "1000m", memory: "2Gi" }
+    </pre>
+  </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+target/
+*.log
+.env
+*.key
+.DS_Store
+__pycache__/
+.morph/
+src-tauri/gen/schemas/
+.reasonix/

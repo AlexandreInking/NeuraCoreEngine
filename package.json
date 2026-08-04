@@ -1,0 +1,12 @@
+{
+  "name": "neuracore-engine",
+  "private": true,
+  "version": "0.1.0-alpha",
+  "scripts": {
+    "dev": "cd apps/launcher && npm run dev",
+    "desktop": "cd apps/launcher && npm run tauri:dev",
+    "build": "cd apps/launcher && npm run build",
+    "lint": "cd apps/launcher && npm run lint",
+    "format:check": "cd apps/launcher && npm run format:check"
+  }
+}
