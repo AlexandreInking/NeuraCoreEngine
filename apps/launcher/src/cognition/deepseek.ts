@@ -1,3 +1,5 @@
+import { fetchWithTimeout, DEFAULT_LLM_TIMEOUT_MS, DEFAULT_TEST_TIMEOUT_MS } from '../llm/provider';
+
 export type DeepSeekConfig = {
   apiKey: string;
   baseUrl: string;
@@ -27,17 +29,21 @@ export async function deepSeekChat(
     throw new Error('DeepSeek API key is not configured.');
   }
 
-  const response = await fetch(apiUrl(config.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey.trim()}`,
-      'Content-Type': 'application/json',
+  const response = await fetchWithTimeout(
+    apiUrl(config.baseUrl, '/chat/completions'),
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey.trim()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.model.trim() || DEFAULT_DEEPSEEK_CONFIG.model,
+        messages,
+      }),
     },
-    body: JSON.stringify({
-      model: config.model.trim() || DEFAULT_DEEPSEEK_CONFIG.model,
-      messages,
-    }),
-  });
+    DEFAULT_LLM_TIMEOUT_MS,
+  );
   const payload = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
     error?: { message?: string };
@@ -54,9 +60,11 @@ export async function deepSeekChat(
 
 export async function testDeepSeekConnection(config: DeepSeekConfig) {
   if (!config.apiKey.trim()) throw new Error('Enter a DeepSeek API key first.');
-  const response = await fetch(apiUrl(config.baseUrl, '/models'), {
-    headers: { Authorization: `Bearer ${config.apiKey.trim()}` },
-  });
+  const response = await fetchWithTimeout(
+    apiUrl(config.baseUrl, '/models'),
+    { headers: { Authorization: `Bearer ${config.apiKey.trim()}` } },
+    DEFAULT_TEST_TIMEOUT_MS,
+  );
   if (!response.ok) {
     const payload = (await response.json()) as { error?: { message?: string } };
     throw new Error(
@@ -82,18 +90,22 @@ export async function deepSeekChatStream(
     throw new Error('DeepSeek API key is not configured.');
   }
   const startedAt = Date.now();
-  const response = await fetch(apiUrl(config.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey.trim()}`,
-      'Content-Type': 'application/json',
+  const response = await fetchWithTimeout(
+    apiUrl(config.baseUrl, '/chat/completions'),
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey.trim()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.model.trim() || DEFAULT_DEEPSEEK_CONFIG.model,
+        messages,
+        stream: true,
+      }),
     },
-    body: JSON.stringify({
-      model: config.model.trim() || DEFAULT_DEEPSEEK_CONFIG.model,
-      messages,
-      stream: true,
-    }),
-  });
+    DEFAULT_LLM_TIMEOUT_MS,
+  );
   if (!response.ok || !response.body) {
     const payload = (await response.json().catch(() => null)) as {
       error?: { message?: string };

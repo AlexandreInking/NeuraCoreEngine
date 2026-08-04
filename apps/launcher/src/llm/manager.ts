@@ -18,6 +18,8 @@ type PersistedProviders = {
 
 const STORAGE_KEY = 'neuracore-llm-providers';
 const LEGACY_DEEPSEEK_KEY = 'neuracore-deepseek';
+/** Peor caso: respuesta (o fallback) en ≤ 20s siempre. */
+const GENERATE_DEADLINE_MS = 20_000;
 
 /** Real DeepSeek API model names (fallback-safe). */
 const SAFE_DEEPSEEK_MODELS = new Set(['deepseek-chat', 'deepseek-reasoner']);
@@ -183,12 +185,15 @@ export class ProviderManager {
       if (fallback && fallback.id !== active?.id) ordered.push(fallback);
     }
 
+    // Global deadline: the chat never hangs beyond this, whatever happens.
+    const deadline = Date.now() + GENERATE_DEADLINE_MS;
     const started = Date.now();
     for (let index = 0; index < ordered.length; index += 1) {
+      if (Date.now() > deadline) break;
       const provider = ordered[index];
       options.onProviderAttempt?.(provider.id, index);
       try {
-        const content = await chatCompletion(provider, messages);
+        const content = await chatCompletion(provider, messages, GENERATE_DEADLINE_MS);
         return {
           content,
           providerId: provider.id,
@@ -197,7 +202,7 @@ export class ProviderManager {
           usedFallback: index > 0,
         };
       } catch {
-        // try next provider
+        // try next provider (or fall through to emergency)
       }
     }
 

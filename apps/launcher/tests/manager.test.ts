@@ -1,6 +1,20 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderManager } from '../src/llm/manager';
-import { defaultProvider, chatCompletion } from '../src/llm/provider';
+import { chatCompletion, defaultProvider, fetchWithTimeout } from '../src/llm/provider';
+
+function hangingFetch() {
+  const mock = vi.fn(
+    (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = (init?.signal ?? null) as AbortSignal | null;
+        signal?.addEventListener('abort', () =>
+          reject(new DOMException('The operation was aborted.', 'AbortError')),
+        );
+      }),
+  );
+  Object.defineProperty(globalThis, 'fetch', { value: mock, writable: true, configurable: true });
+  return mock;
+}
 
 function mockStorage(initial: Record<string, string>) {
   const store = new Map(Object.entries(initial));
@@ -118,5 +132,50 @@ describe('llm/manager — legacy merge and failover', () => {
     const manager = new ProviderManager();
     expect(manager.activeProvider()?.apiKey).toBe('sk-existing');
     expect(manager.activeProvider()?.model).toBe('deepseek-reasoner');
+  });
+});
+
+describe('llm/timeouts — el chat nunca se cuelga', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('aborts a hanging fetch after the timeout', async () => {
+    vi.useFakeTimers();
+    hangingFetch();
+    const promise = fetchWithTimeout('https://api.deepseek.com/models', {}, 1000);
+    const assertion = expect(promise).rejects.toThrow(/timeout/);
+    vi.advanceTimersByTime(1200);
+    await assertion;
+  });
+
+  it('chatCompletion rejects with a descriptive timeout error', async () => {
+    vi.useFakeTimers();
+    hangingFetch();
+    const promise = chatCompletion(
+      { ...defaultProvider('deepseek'), apiKey: 'sk-test' },
+      [{ role: 'user', content: 'hola' }],
+      1000,
+    );
+    const assertion = expect(promise).rejects.toThrow(/timeout/);
+    vi.advanceTimersByTime(1200);
+    await assertion;
+  });
+
+  it('generate resolves to the emergency response when the LLM hangs', async () => {
+    vi.useFakeTimers();
+    mockStorage({});
+    hangingFetch();
+    const manager = new ProviderManager();
+    const promise = manager.generate([{ role: 'user', content: 'hola' }], {
+      traits: { honesty: 60, emotionality: 50, extraversion: 70, agreeableness: 60, conscientiousness: 60, openness: 60 },
+    });
+    const assertion = expect(promise).resolves.toMatchObject({
+      usedFallback: true,
+      emergency: { style: 'upbeat' },
+    });
+    await vi.advanceTimersByTimeAsync(25_000);
+    await assertion;
   });
 });
