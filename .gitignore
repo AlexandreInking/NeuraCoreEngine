@@ -8,4 +8,5 @@ target/
 __pycache__/
 .morph/
 src-tauri/gen/schemas/
+**/src-tauri/gen/schemas/
 .reasonix/
