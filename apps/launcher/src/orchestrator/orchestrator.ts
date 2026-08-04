@@ -5,6 +5,8 @@ import { l2StoreFor } from '../l2';
 import { l3ProfileStore } from '../l3';
 import { compileSystemPrompt } from '../l3/compiler';
 import { EkfVadEngine, DEFAULT_EKF_CONFIG, DEFAULT_VAD_CONFIG } from '../vad';
+import { extractVadDelta, vadDeltaPromptHint } from '../vad/postresponse';
+import { VadHistoryStore, type VadHistoryPoint } from '../vad/history';
 import {
   deepSeekChat,
   testDeepSeekConnection,
@@ -34,6 +36,7 @@ export type PipelineResult = {
   topFacts: L1Fact[];
   activeScenario: string | null;
   vad: { valence: number; arousal: number; dominance: number };
+  vadHistory: VadHistoryPoint[];
 };
 
 /**
@@ -45,11 +48,13 @@ export class CognitiveOrchestrator {
   readonly agentId: string;
   readonly vad: EkfVadEngine;
   readonly sessionId: string;
+  readonly vadHistory: VadHistoryStore;
 
   constructor(agentId: string) {
     this.agentId = agentId;
     this.sessionId = `session-${Date.now().toString(36)}`;
     this.vad = new EkfVadEngine(DEFAULT_VAD_CONFIG, DEFAULT_EKF_CONFIG);
+    this.vadHistory = new VadHistoryStore(agentId, this.sessionId);
   }
 
   private measure<T>(fn: () => T | Promise<T>): Promise<{ result: T; latencyMs: number }> {
@@ -197,7 +202,10 @@ export class CognitiveOrchestrator {
     let llmError = '';
     try {
       const history: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-        { role: 'system', content: l3.result ?? 'Eres un asistente coherente.' },
+        {
+          role: 'system',
+          content: `${l3.result ?? 'Eres un asistente coherente.'}\n\n${vadDeltaPromptHint()}`,
+        },
         { role: 'user', content: message },
       ];
       if (!config.apiKey.trim()) {
@@ -214,6 +222,25 @@ export class CognitiveOrchestrator {
       detail: llmError || `${llmContent.length} chars`,
     });
 
+    // 7. VAD post-response: parse {vad_delta} and apply with decay.
+    const delta = llmContent ? extractVadDelta(llmContent) : null;
+    if (delta) {
+      const vadPost = await this.measure(() => {
+        this.vad.fuse({ kind: 'lexical', delta }, 0.5);
+        const state = this.vad.state();
+        this.vadHistory.add(state);
+        return state;
+      });
+      emit({
+        name: 'VAD post-respuesta',
+        status: 'ok',
+        latencyMs: vadPost.latencyMs,
+        detail: `Δ V ${delta.valence?.toFixed(2) ?? '—'} A ${delta.arousal?.toFixed(2) ?? '—'}`,
+      });
+    } else {
+      emit({ name: 'VAD post-respuesta', status: 'ok', latencyMs: 0, detail: 'sin vad_delta' });
+    }
+
     // Write the agent reply to L0 (turn complete).
     try {
       l0StoreFor(this.agentId).append('main', this.agentId, 'agent', llmContent, DEFAULT_PROSODY);
@@ -227,6 +254,7 @@ export class CognitiveOrchestrator {
       topFacts: l1.result,
       activeScenario: l2.result?.name ?? null,
       vad: this.vad.state(),
+      vadHistory: this.vadHistory.all(),
     };
   }
 }

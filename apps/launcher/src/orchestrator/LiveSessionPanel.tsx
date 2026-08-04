@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import type { DeepSeekConfig } from '../cognition/deepseek';
+import type { VadHistoryPoint } from '../vad/history';
 import {
   orchestratorFor,
   type CognitiveOrchestrator,
@@ -23,7 +24,33 @@ function StepNode({ step }: { step: PipelineStep }) {
   );
 }
 
-const STEP_NAMES = ['L0 buffer', 'VAD extract', 'L1 facts', 'L2 scenario', 'L3 prompt', 'LLM response'];
+const STEP_NAMES = ['L0 buffer', 'VAD extract', 'L1 facts', 'L2 scenario', 'L3 prompt', 'LLM response', 'VAD post-respuesta'];
+
+function VadSparkline({ history }: { history: VadHistoryPoint[] }) {
+  if (history.length < 2) {
+    return <p className="memory-search-empty">El historial VAD se llena con cada turno que incluye vad_delta.</p>;
+  }
+  const width = 360;
+  const height = 64;
+  const axes = ['valence', 'arousal', 'dominance'] as const;
+  const colors = ['#ef4444', '#22c55e', '#3b82f6'];
+  const pathFor = (axis: (typeof axes)[number]) => {
+    const points = history.map((point, index) => {
+      const x = (index / (history.length - 1)) * width;
+      const y = height / 2 - point.state[axis] * (height / 2 - 4);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    return `M ${points.join(' L ')}`;
+  };
+  return (
+    <svg className="vad-sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historial VAD">
+      <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="var(--border)" strokeDasharray="3 3" />
+      {axes.map((axis, index) => (
+        <path key={axis} d={pathFor(axis)} fill="none" stroke={colors[index]} strokeWidth={1.5} />
+      ))}
+    </svg>
+  );
+}
 
 /**
  * Live Session panel (hito 7.1-7.2): subsystem indicators, health check
@@ -52,6 +79,7 @@ export function LiveSessionPanel({
   const [response, setResponse] = useState('');
   const [pipelineError, setPipelineError] = useState('');
   const [lastVad, setLastVad] = useState<{ valence: number; arousal: number; dominance: number } | null>(null);
+  const [vadHistory, setVadHistory] = useState<VadHistoryPoint[]>([]);
   const [lastScenario, setLastScenario] = useState<string | null>(null);
   const logRef = useRef<string[]>([]);
   const [log, setLog] = useState<string[]>([]);
@@ -98,6 +126,7 @@ export function LiveSessionPanel({
       });
       setResponse(result.response);
       setLastVad(result.vad);
+      setVadHistory(result.vadHistory);
       setLastScenario(result.activeScenario);
       pushLog(`Pipeline completo · escenario L2: ${result.activeScenario ?? 'ninguno'}`);
     } catch (error) {
@@ -182,6 +211,18 @@ export function LiveSessionPanel({
               VAD post-pipeline: V {lastVad.valence.toFixed(2)} · A {lastVad.arousal.toFixed(2)} · D{' '}
               {lastVad.dominance.toFixed(2)} · Escenario L2: {lastScenario ?? 'ninguno'}
             </p>
+          ) : null}
+          <VadSparkline history={vadHistory} />
+          {vadHistory.length ? (
+            <div className="l1-actions">
+              <a
+                className="memory-action"
+                download={`vad_history_${orchestrator.sessionId}.json`}
+                href={`data:application/json;charset=utf-8,${encodeURIComponent(orchestrator.vadHistory.exportJson())}`}
+              >
+                Exportar vad_history_{orchestrator.sessionId}.json
+              </a>
+            </div>
           ) : null}
           {response ? (
             <div className="l3-test-output">

@@ -5444,3 +5444,14 @@ a:focus-visible {
   border-color: rgba(245, 158, 11, 0.45);
   color: var(--amber);
 }
+
+.vad-sparkline {
+  width: 100%;
+  max-width: 460px;
+  height: 64px;
+  display: block;
+  margin-top: var(--space-xs);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
