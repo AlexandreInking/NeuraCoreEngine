@@ -17,6 +17,14 @@ type PersistedProviders = {
 };
 
 const STORAGE_KEY = 'neuracore-llm-providers';
+const LEGACY_DEEPSEEK_KEY = 'neuracore-deepseek';
+
+/** Real DeepSeek API model names (fallback-safe). */
+const SAFE_DEEPSEEK_MODELS = new Set(['deepseek-chat', 'deepseek-reasoner']);
+
+function sanitizeDeepSeekModel(model: string): string {
+  return SAFE_DEEPSEEK_MODELS.has(model.trim()) ? model.trim() : 'deepseek-chat';
+}
 
 export type GenerateOptions = {
   onProviderAttempt?: (providerId: string, index: number) => void;
@@ -31,24 +39,51 @@ export class ProviderManager {
     // Guarantee at least one provider (legacy DeepSeek config is merged in).
     if (!this.data.providers.length) {
       const deepseek = defaultProvider('deepseek');
-      try {
-        const raw = globalThis.localStorage.getItem('neuracore-deepseek');
-        if (raw) {
-          const legacy = JSON.parse(raw) as {
-            apiKey?: string;
-            baseUrl?: string;
-            model?: string;
-          };
-          if (typeof legacy.apiKey === 'string') deepseek.apiKey = legacy.apiKey;
-          if (typeof legacy.baseUrl === 'string') deepseek.baseUrl = legacy.baseUrl;
-          if (typeof legacy.model === 'string') deepseek.model = legacy.model;
-        }
-      } catch {
-        // keep defaults
-      }
+      deepseek.model = sanitizeDeepSeekModel(deepseek.model);
       this.data.providers = [deepseek];
       this.data.activeId = deepseek.id;
-      this.save();
+    }
+    this.mergeLegacyDeepSeek();
+    this.save();
+  }
+
+  /**
+   * Merge the legacy `neuracore-deepseek` config into any deepseek provider
+   * whose key is empty. Runs on construction AND before every generate, so a
+   * key saved after the provider list existed is still picked up.
+   */
+  private mergeLegacyDeepSeek() {
+    try {
+      const raw = globalThis.localStorage.getItem(LEGACY_DEEPSEEK_KEY);
+      if (!raw) return;
+      const legacy = JSON.parse(raw) as {
+        apiKey?: string;
+        baseUrl?: string;
+        model?: string;
+      };
+      if (typeof legacy.apiKey !== 'string' || !legacy.apiKey.trim()) return;
+      const legacyKey = legacy.apiKey;
+      let changed = false;
+      this.data.providers = this.data.providers.map((provider) => {
+        if (provider.kind !== 'deepseek' || provider.apiKey.trim()) return provider;
+        changed = true;
+        return {
+          ...provider,
+          apiKey: legacyKey,
+          baseUrl:
+            typeof legacy.baseUrl === 'string' && legacy.baseUrl.trim()
+              ? legacy.baseUrl
+              : provider.baseUrl,
+          model: sanitizeDeepSeekModel(
+            typeof legacy.model === 'string' && legacy.model.trim()
+              ? legacy.model
+              : provider.model,
+          ),
+        };
+      });
+      if (changed) this.save();
+    } catch {
+      // storage unavailable or malformed — keep current providers
     }
   }
 
@@ -139,6 +174,7 @@ export class ProviderManager {
     messages: LlmMessage[],
     options: GenerateOptions = {},
   ): Promise<LlmResult & { usedFallback: boolean; emergency?: EmergencyResponse }> {
+    this.mergeLegacyDeepSeek();
     const active = this.activeProvider();
     const ordered: ProviderConfig[] = [];
     if (active) ordered.push(active);

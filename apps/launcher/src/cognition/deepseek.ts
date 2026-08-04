@@ -7,7 +7,7 @@ export type DeepSeekConfig = {
 export const DEFAULT_DEEPSEEK_CONFIG: DeepSeekConfig = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-v4-flash-0731',
+  model: 'deepseek-chat',
 };
 
 export type DeepSeekMessage = {

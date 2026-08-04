@@ -42,7 +42,7 @@ export function defaultProvider(kind: ProviderKind): ProviderConfig {
     kind,
     apiKey: '',
     baseUrl: DEFAULT_PROVIDER_BASES[kind],
-    model: kind === 'deepseek' ? 'deepseek-v4-flash-0731' : 'gpt-4o-mini',
+    model: kind === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini',
   };
 }
 
