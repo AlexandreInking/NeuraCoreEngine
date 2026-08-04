@@ -28,7 +28,6 @@ import LiveSessionPage from './LiveSessionPage';
 import {
   CognitionEngine,
   DEFAULT_DEEPSEEK_CONFIG,
-  deepSeekChat,
   testDeepSeekConnection,
   type CognitiveState,
   type DeepSeekConfig,
@@ -40,6 +39,8 @@ import {
   EMOTION_LABELS,
 } from './cognition/types';
 import ChatsPage from './chat/ChatsPage';
+import { providerManager } from './llm';
+import { LlmProvidersSettings } from './LlmProvidersSettings';
 import { autoPlaceArtifact, parseArtifacts } from './chat/artifacts';
 import type { Chat, ChatMessage } from './chat/types';
 import { l0StoreFor } from './l0';
@@ -1302,6 +1303,8 @@ function SettingsPage({
           </div>
         </form>
       </article>
+
+      <LlmProvidersSettings />
     </Page>
   );
 }
@@ -1487,13 +1490,26 @@ function LauncherShell() {
         // L3 is optional; fall back to the cognitive prompt alone.
       }
 
-      const response = await deepSeekChat(deepSeekConfig, [
-        { role: 'system', content: finalSystemPrompt },
-        ...history,
-      ]);
+      const llmResult = await providerManager().generate(
+        [{ role: 'system', content: finalSystemPrompt }, ...history],
+        { traits: engine.state.personality.conscious },
+      );
+      const response = llmResult.content;
       engine.recordAssistantReply(response);
       setCognitionState({ ...engine.state });
       l0.append('main', agentId, 'agent', response, { ...DEFAULT_PROSODY });
+      const emergency = llmResult.emergency;
+      if (emergency) {
+        setLogs((current) => [
+          ...current,
+          {
+            id: createId('log'),
+            timestamp: Date.now(),
+            message: `LLM agotó proveedores → respuesta de emergencia (${emergency.style})`,
+            level: 'WARN',
+          },
+        ]);
+      }
 
       // Extract fenced blocks (charts, code, tables…) into desktop windows.
       const parsed = parseArtifacts(response);
