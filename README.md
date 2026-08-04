@@ -45,6 +45,18 @@ La capa **L2** (`apps/launcher/src/l2/`) agrupa hechos L1 en **escenarios situac
 
 La capa **L3** (`apps/launcher/src/l3/`) define el **perfil de agente** (Persona Designer: identidad, vertical, VAD baseline, inercia emocional γ, reglas éticas, texto base) y lo compila en un **System Prompt con budget ≤ 800 tokens** (conteo real `gpt-tokenizer`/cl100k): secciones `[PERFIL BASE L3] [VAD ACTUAL + COLOR HEX] [ESCENARIO L2 ACTIVO] [TOP-3 HECHOS L1]`, barra verde/amarillo/roja y recorte automático de hechos de menor score. Incluye **test con LLM real en streaming** (SSE), **consolidación periódica** (regenera el texto base desde L2/L1 con diff y rollback de 5 snapshots) e integración en el chat: cuando existe perfil L3 del agente, el prompt compilado se antepone al System Prompt cognitivo.
 
+## Motor afectivo VAD (hitos 6.1–6.5)
+
+El motor **VAD** (`apps/launcher/src/vad/`) implementa el ciclo emocional del documento: `E(t+Δt) = baseline + (E − baseline)·e^(−γ·Δt) + ΔE + η(t)` con γ configurable (0.01–0.99), clamp [−1,1] y ruido Gaussiano. Un **EKF** fusiona dos fuentes (audio + léxico) con sliders Q/R. La página *Affect Engine* incluye un **simulador 3D** (Three.js: esfera en (V,A,D), color por cuadrante, pulso por arousal, órbita), **prosodia en vivo** (micrófono: pitch YIN, energía RMS, cadencia → ΔVAD) y un **SSML builder** por cuadrante (Web Speech/Azure/ElevenLabs).
+
+## Orquestador, modelos agnósticos y proactividad (hitos 7.1–7.5, cap 2/3/16)
+
+La página **Live Session** (`apps/launcher/src/orchestrator/`) ejecuta el pipeline completo **L0 → VAD → L1 → L2 → L3 → LLM** con health check por subsistema, latencias, log estructurado, **VAD post-respuesta** (`{vad_delta}` del LLM + historial/export) y **payload SDK** validado contra JSON Schema draft-07. El chat usa **proveedores agnósticos** (DeepSeek/OpenAI/Azure/OpenAI-compatible con fallback y respuesta de emergencia según la personalidad HEXACO) y captura **intención predictiva** tras una pausa de 1.99s (clasificación local + cache + validación). La pestaña incluye el evaluador de **comportamiento proactivo** (personalidad × tiempo sin interacción → tipo de acción → mensaje LLM/heurístico) y el panel de **observabilidad** (10 métricas, p50/p95, export).
+
+## Salida SDK, gateway y multi-tenant (hitos 8.1–9.6)
+
+El **gateway Rust** (`core/engine`, binario `neuracore-gateway`) expone el output al exterior: **gRPC Tonic** (`EmitTurn` + `StreamAffect`, proto `neuracore_v2`) y **REST/SSE/WebSocket** (Axum: `POST /v2/turn`, `GET /v2/affect`, `GET /v2/ws`), con auth **JWT HS256** (`POST /auth/token` con X-Api-Key; middleware Bearer/headers, 401) y rate limit (429). Incluye **SDKs estáticos** Unity (`sdks/unity`) y UE5 (`sdks/ue5`), **PII scrubbing** antes de indexar en L1, panel **Admin > Tenants** (CRUD, tokens con TTL, auditoría) y script **k6** (`core/k6/smoke.js`). Tests: `npm test` (vitest, 22 tests).
+
 ## Memoria visual y editable
 
 La página Memory muestra el **grafo de conexiones** de los recuerdos: el tamaño de cada nodo representa su importancia/fuerza y el color su emoción asociada (rueda de Plutchik), con aristas por temas compartidos. Incluye **búsqueda semántica** local (similitud de keywords + fuerza Ebbinghaus), **inserción** de memorias nuevas y **edición por capas**: *Decay* (olvido acelerado), *Repress* (mover al subconsciente) o *Delete* (eliminar de todas las capas, con confirmación).

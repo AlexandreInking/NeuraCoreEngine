@@ -6,6 +6,53 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: 'v0.9.0-alpha',
+    date: '2026-08-04',
+    notes: [
+      'Multi-tenant: JWT HS256 (TS Web Crypto + Rust jsonwebtoken), POST /auth/token, middleware Bearer/headers con 401',
+      'Panel Admin > Tenants: CRUD, API keys ocultas, tokens con TTL, auditoría append-only y logs de intentos fallidos',
+      'PII scrubbing L0→L1 (email/teléfono/tarjeta/IBAN/IP/GPS enmascarados antes de indexar)',
+      'Rate limiting: token bucket en el pipeline + middleware Rust (429 a 120 req/min)',
+      'Observabilidad: 10 métricas (turnos, errores LLM, PII, rate-limit, p50/p95), historial, export JSON y panel',
+      'Suite vitest: 22 tests de VAD, intención, PII, payload schema y proactividad',
+      'Script k6 de carga para el gateway (umbrales p95 < 500ms, errores < 1%)',
+    ],
+  },
+  {
+    version: 'v0.8.0-alpha',
+    date: '2026-08-04',
+    notes: [
+      'NeuraCoreOutputPayload v1.0.0 (affectState, memoryTrace, cognitiveOutput, behavioralTriggers)',
+      'Validación contra JSON Schema draft-07 (ajv) + visor con collapse/copiar/tamaño',
+      'Gateway Rust: gRPC Tonic (EmitTurn + StreamAffect) y REST/SSE/WebSocket Axum con test_client.html',
+      'SDKs estáticos Unity (NeuraCoreClient/AnimatorBridge/UIBridge) y UE5 (subsystem + blueprint delegate)',
+      'Comportamiento proactivo (cap 16): personalidad × tiempo → probabilidad, tipo ponderado y mensaje LLM/heurístico',
+    ],
+  },
+  {
+    version: 'v0.7.0-alpha',
+    date: '2026-08-04',
+    notes: [
+      'CognitiveOrchestrator: pipeline L0→VAD→L1→L2→L3→LLM con health check por subsistema y latencias',
+      'Panel Live Session: indicadores, pipeline visual iluminado, log estructurado',
+      'Modelos agnósticos: DeepSeek/OpenAI/Azure/OpenAI-compatible con fallback y recovery por personalidad (cap 18)',
+      'Intención predictiva local (cap 2): timer de pausa 1.99s, clasificación, cache y validación al enviar',
+      'VAD post-respuesta: {vad_delta} del LLM aplicado con decay, historial por sesión y export JSON',
+      'Chat turno a turno: VAD por mensaje, contexto vivo (L2 + L1), auto-extracción L1 cada 5 turnos, export conversación',
+    ],
+  },
+  {
+    version: 'v0.6.0-alpha',
+    date: '2026-08-04',
+    notes: [
+      'Motor afectivo VAD E2E: vadStep con decaimiento al baseline (γ 0.01–0.99), clamp [−1,1] y ruido Gaussiano',
+      'EKF (fusión audio + léxico) con sliders Q/R y dos esferas comparativas en 3D',
+      'Visualizador 3D (Three.js/react-three-fiber): esfera en (V,A,D), color por cuadrante, pulso por arousal',
+      'Prosodia en vivo: Web Audio + YIN (pitch Hz), RMS (dB) y cadencia (syll/s) → ΔVAD',
+      'SSML builder por cuadrante con reproducción Web Speech (Web Speech/Azure/ElevenLabs)',
+    ],
+  },
+  {
     version: 'v0.5.0-alpha',
     date: '2026-08-06',
     notes: [
