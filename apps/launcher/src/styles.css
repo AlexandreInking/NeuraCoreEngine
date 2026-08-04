@@ -5418,3 +5418,29 @@ a:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── Intention prediction (cap 2) ───────────────────────────────────── */
+
+.intention-chip {
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg-raised);
+}
+
+.intention-chip.analyzing {
+  border-color: rgba(112, 161, 255, 0.4);
+  color: var(--indigo);
+}
+
+.intention-chip.ready {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: var(--green);
+}
+
+.intention-chip.used {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: var(--amber);
+}

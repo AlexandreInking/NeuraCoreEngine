@@ -24,6 +24,8 @@ export default [
         URL: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
         SVGSVGElement: 'readonly',
         XMLSerializer: 'readonly',
         Image: 'readonly',

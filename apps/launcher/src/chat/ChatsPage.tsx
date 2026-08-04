@@ -11,6 +11,11 @@ import {
   type ChatWindowState,
 } from './artifacts';
 import type { Chat, ChatMessage } from './types';
+import {
+  useIntentionCapture,
+  INTENTION_LABELS,
+  type PredictedIntent,
+} from '../intention';
 
 const COGNITION_WINDOW_KEY = 'neuracore-cognition-window';
 
@@ -149,6 +154,8 @@ export default function ChatsPage({
 }) {
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
   const [draft, setDraft] = useState('');
+  const intentionCapture = useIntentionCapture();
+  const [lastPrediction, setLastPrediction] = useState<PredictedIntent | null>(null);
   const [railOpen, setRailOpen] = useState(true);
   const [cognitionWindow, setCognitionWindow] = useState<CognitionWindowState>(
     () =>
@@ -365,6 +372,8 @@ export default function ChatsPage({
     event.preventDefault();
     const content = draft.trim();
     if (!content || sending || !activeChat) return;
+    const used = intentionCapture.validateAndClear(content);
+    setLastPrediction(used);
     setDraft('');
     onSend(content);
   };
@@ -602,12 +611,34 @@ export default function ChatsPage({
                       <form className="chat-composer" onSubmit={submit}>
                         <textarea
                           value={draft}
-                          onChange={(event) => setDraft(event.target.value)}
+                          onChange={(event) => {
+                            setDraft(event.target.value);
+                            intentionCapture.onChange(event.target.value);
+                          }}
                           placeholder="Escribe un mensaje… (usa ```chart / ```code para que Neura abra ventanas)"
                           rows={3}
                         />
                         <div className="composer-footer">
-                          <span>Enter para enviar</span>
+                          {intentionCapture.status === 'analyzing' ? (
+                            <span className="intention-chip analyzing">
+                              ⏳ Analizando intención…
+                            </span>
+                          ) : intentionCapture.intention ? (
+                            <span className="intention-chip ready" title="Intención predictiva cacheada (pausa de 1.99s)">
+                              ⚡ {INTENTION_LABELS[intentionCapture.intention.type]} · conf{' '}
+                              {Math.round(intentionCapture.intention.confidence * 100)}% · urgencia{' '}
+                              {Math.round(intentionCapture.intention.urgency * 100)}%
+                              {intentionCapture.intention.topics.length
+                                ? ` · ${intentionCapture.intention.topics.join(', ')}`
+                                : ''}
+                            </span>
+                          ) : lastPrediction ? (
+                            <span className="intention-chip used" title="Enviado con contexto predictivo">
+                              ⚡ Enviado con predicción: {INTENTION_LABELS[lastPrediction.type]}
+                            </span>
+                          ) : (
+                            <span>Enter para enviar</span>
+                          )}
                           <button
                             className="button-primary"
                             type="submit"
